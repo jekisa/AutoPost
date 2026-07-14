@@ -1,0 +1,42 @@
+{
+  "name": "autopost",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Instagram Auto-Post App",
+  "scripts": {
+    "dev": "node ./scripts/next-with-patches.js dev --webpack",
+    "build": "node ./scripts/next-with-patches.js build --webpack",
+    "start": "next start",
+    "scheduler": "node scripts/publish-scheduled-worker.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
+    "lint": "eslint .",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0",
+    "@vercel/blob": "^2.6.1",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.24.0",
+    "next": "^16.2.10",
+    "next-auth": "^4.24.14",
+    "node-cron": "^4.2.1",
+    "prisma": "6.19.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "^10.5.2",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "3.4.18",
+    "typescript": "latest"
+  }
+}

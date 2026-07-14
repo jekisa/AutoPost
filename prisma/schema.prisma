@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PostMediaType {
+  IMAGE
+  CAROUSEL
+  REELS
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+}
+
+model Post {
+  id           String        @id @default(cuid())
+  caption      String
+  mediaType    PostMediaType
+  status       PostStatus    @default(DRAFT)
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  igMediaId    String?
+  instagramPermalink String?
+  errorMessage String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  mediaAssets  MediaAsset[]
+  publishLogs  PublishLog[]
+}
+
+model MediaAsset {
+  id        String    @id @default(cuid())
+  postId    String
+  url       String
+  order     Int
+  type      AssetType
+  createdAt DateTime  @default(now())
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, order])
+}
+
+model IgAccount {
+  id             String    @id @default(cuid())
+  igUserId       String    @unique
+  pageId         String
+  username       String?
+  accessToken    String
+  tokenExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model PublishLog {
+  id        String   @id @default(cuid())
+  postId    String?
+  action    String
+  request   Json?
+  response  Json?
+  status    String
+  createdAt DateTime @default(now())
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+}
