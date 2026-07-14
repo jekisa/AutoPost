@@ -1,4 +1,0 @@
-
-> autopost@1.0.0 scheduler
-> node scripts/publish-scheduled-worker.mjs
-
