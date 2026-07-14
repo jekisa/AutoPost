@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
 import { getErrorMessage, publishPostWithRetry } from "@/lib/posts/publisher";
-import { prisma } from "@/lib/prisma";
+import { Post } from "@/models/Post";
+import { PublishLog } from "@/models/PublishLog";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
@@ -33,12 +35,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Gunakan JPG, PNG, atau WebP maksimal 8MB." }, { status: 400 });
   }
 
-  const post = await prisma.post.create({
-    data: {
-      caption: parsed.data.caption,
-      mediaType: "IMAGE",
-      status: "PUBLISHING"
-    }
+  await connectDB();
+  const post = await Post.create({
+    caption: parsed.data.caption,
+    mediaType: "IMAGE",
+    status: "PUBLISHING",
+    mediaAssets: []
   });
 
   try {
@@ -46,38 +48,27 @@ export async function POST(request: Request) {
       throw new Error("BLOB_READ_WRITE_TOKEN belum dikonfigurasi. Isi .env lalu restart server development.");
     }
 
-    const blob = await put(`instagram/${post.id}/${file.name}`, file, {
+    const blob = await put(`instagram/${post._id.toString()}/${file.name}`, file, {
       access: "public",
       addRandomSuffix: true,
       token: blobToken
     });
 
-    await prisma.mediaAsset.create({
-      data: {
-        postId: post.id,
-        url: blob.url,
-        order: 0,
-        type: "IMAGE"
-      }
-    });
+    post.mediaAssets.push({ url: blob.url, order: 0, type: "IMAGE" });
+    await post.save();
 
-    const { published } = await publishPostWithRetry(post.id, 1);
+    const { published } = await publishPostWithRetry(post._id.toString(), 1);
 
-    return NextResponse.json({ postId: post.id, igMediaId: published.id, imageUrl: blob.url });
+    return NextResponse.json({ postId: post._id.toString(), igMediaId: published.id, imageUrl: blob.url });
   } catch (error) {
     const message = getErrorMessage(error);
-    await prisma.post.update({
-      where: { id: post.id },
-      data: { status: "FAILED", errorMessage: message }
-    });
-    await prisma.publishLog.create({
-      data: {
-        postId: post.id,
-        action: "publish_image",
-        request: { postId: post.id },
-        response: { error: message },
-        status: "failed"
-      }
+    await Post.findByIdAndUpdate(post._id, { status: "FAILED", errorMessage: message });
+    await PublishLog.create({
+      postId: post._id,
+      action: "publish_image",
+      request: { postId: post._id.toString() },
+      response: { error: message },
+      status: "failed"
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }

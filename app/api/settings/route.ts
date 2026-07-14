@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { encryptSecret } from "@/lib/crypto";
+import { connectDB } from "@/lib/mongodb";
 import { getAccountInfo } from "@/lib/meta/instagram";
-import { prisma } from "@/lib/prisma";
+import { IgAccount } from "@/models/IgAccount";
+import { PublishLog } from "@/models/PublishLog";
 
 const schema = z.object({
   igUserId: z.string().min(5),
@@ -26,31 +27,24 @@ export async function POST(request: Request) {
   const { igUserId, pageId, accessToken, tokenExpiresAt } = parsed.data;
 
   try {
+    await connectDB();
     const accountInfo = await getAccountInfo(igUserId, accessToken);
-    const account = await prisma.igAccount.upsert({
-      where: { igUserId },
-      update: {
+    const account = await IgAccount.findOneAndUpdate(
+      { igUserId },
+      {
         pageId,
         username: accountInfo.username ?? accountInfo.name,
-        accessToken: encryptSecret(accessToken),
+        accessToken,
         tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : null
       },
-      create: {
-        igUserId,
-        pageId,
-        username: accountInfo.username ?? accountInfo.name,
-        accessToken: encryptSecret(accessToken),
-        tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : null
-      }
-    });
+      { new: true, upsert: true, runValidators: true }
+    );
 
-    await prisma.publishLog.create({
-      data: {
-        action: "test_connection",
-        request: { igUserId, fields: "id,username,name" },
-        response: accountInfo,
-        status: "success"
-      }
+    await PublishLog.create({
+      action: "test_connection",
+      request: { igUserId, fields: "id,username,name" },
+      response: accountInfo,
+      status: "success"
     });
 
     return NextResponse.json({
@@ -60,13 +54,12 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gagal test connection.";
-    await prisma.publishLog.create({
-      data: {
+    await connectDB();
+    await PublishLog.create({
         action: "test_connection",
         request: { igUserId, fields: "id,username,name" },
         response: { error: message },
         status: "failed"
-      }
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }

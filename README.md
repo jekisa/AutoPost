@@ -19,8 +19,8 @@ AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, dan publish kon
 - React
 - TypeScript
 - Tailwind CSS
-- Prisma
-- PostgreSQL
+- Mongoose
+- MongoDB Atlas
 - NextAuth.js
 - Vercel Blob
 - Meta Graph API
@@ -28,7 +28,7 @@ AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, dan publish kon
 ## Prasyarat
 
 - Node.js 20 atau lebih baru
-- PostgreSQL database, misalnya Supabase atau Neon
+- MongoDB Atlas database
 - Vercel Blob token
 - Meta App dengan permission Instagram Content Publishing
 - Instagram Business Account dan Facebook Page yang sudah terhubung
@@ -56,7 +56,7 @@ Copy-Item .env.example .env
 3. Isi environment variable di `.env`.
 
 ```env
-DATABASE_URL=
+MONGODB_URI=
 NEXTAUTH_SECRET=
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=
@@ -70,19 +70,7 @@ CRON_SECRET=
 APP_URL=http://localhost:3000
 ```
 
-4. Generate Prisma Client:
-
-```bash
-npx prisma generate
-```
-
-5. Sinkronkan schema database:
-
-```bash
-npx prisma db push
-```
-
-6. Jalankan development server:
+4. Jalankan development server:
 
 ```bash
 npm run dev
@@ -92,11 +80,8 @@ Aplikasi berjalan di `http://localhost:3000`.
 
 ## Environment Variables
 
-`DATABASE_URL`
-: Connection string PostgreSQL untuk runtime. Jika memakai Supabase di Vercel, gunakan Transaction Pooler dengan format `postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true`. Jika password database berisi karakter khusus seperti `@`, `#`, `:`, `/`, atau `?`, encode dulu password-nya agar URL valid.
-
-`DIRECT_URL`
-: Connection string PostgreSQL direct untuk Prisma migration. Format Supabase: `postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres`.
+`MONGODB_URI`
+: Connection string MongoDB Atlas, misalnya `mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/autopost?retryWrites=true&w=majority`.
 
 `NEXTAUTH_SECRET`
 : Secret untuk NextAuth. Gunakan string random panjang.
@@ -180,8 +165,6 @@ npm run build
 npm run start
 npm run lint
 npm run scheduler
-npm run prisma:generate
-npm run prisma:migrate
 ```
 
 ## Validasi Media
@@ -202,24 +185,16 @@ Reels:
 
 ## Troubleshooting
 
-### Prisma: invalid port number in database URL
+### MongoDB connection gagal
 
-Periksa `DATABASE_URL`. Jika password mengandung karakter khusus, ubah menjadi URL-encoded. Contoh:
+Periksa `MONGODB_URI`. Jika username atau password database berisi karakter khusus seperti `@`, `#`, `:`, `/`, atau `?`, encode dulu agar URI valid. Contoh:
 
 ```text
 password p@ss:word
 menjadi p%40ss%3Aword
 ```
 
-### Prisma schema engine error saat `db push`
-
-Pastikan `DATABASE_URL` valid dan database bisa diakses dari mesin lokal. Coba jalankan:
-
-```bash
-npx prisma validate
-npx prisma generate
-npx prisma db push
-```
+Pastikan juga IP/network Vercel atau mesin lokal diizinkan oleh MongoDB Atlas Network Access.
 
 ### Build Next.js gagal di Windows atau drive tertentu
 
@@ -250,9 +225,13 @@ components/
 lib/
   meta/
   posts/
-prisma/
+models/
 scripts/
 ```
+
+## Catatan Database
+
+Data access layer memakai Mongoose + MongoDB Atlas. Migrasi dari Prisma + PostgreSQL/Supabase dilakukan untuk menghindari kerumitan prepared statement dan pooler Supabase di lingkungan serverless seperti Vercel.
 
 ## Catatan Meta API
 

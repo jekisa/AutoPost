@@ -1,5 +1,5 @@
-import type { Prisma } from "@prisma/client";
 import { decryptSecret } from "@/lib/crypto";
+import { connectDB } from "@/lib/mongodb";
 import {
   createMediaContainer,
   getPublishedMediaInfo,
@@ -7,7 +7,9 @@ import {
   publishContainer,
   waitForContainerFinished
 } from "@/lib/meta/instagram";
-import { prisma } from "@/lib/prisma";
+import { IgAccount } from "@/models/IgAccount";
+import { Post } from "@/models/Post";
+import { PublishLog } from "@/models/PublishLog";
 
 const TRANSIENT_META_CODES = new Set([1, 2, 4, 17, 32, 613]);
 const DAILY_PUBLISH_LIMIT = 25;
@@ -49,20 +51,20 @@ export function isTransientPublishError(error: unknown) {
 async function logPublish(data: {
   postId: string;
   action: string;
-  request: Prisma.InputJsonValue;
-  response: Prisma.InputJsonValue;
+  request: unknown;
+  response: unknown;
   status: "success" | "failed";
 }) {
-  await prisma.publishLog.create({ data });
+  await connectDB();
+  await PublishLog.create(data);
 }
 
 async function assertDailyPublishLimit() {
+  await connectDB();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const publishedCount = await prisma.post.count({
-    where: {
-      status: "PUBLISHED",
-      publishedAt: { gte: since }
-    }
+  const publishedCount = await Post.countDocuments({
+    status: "PUBLISHED",
+    publishedAt: { $gte: since }
   });
 
   if (publishedCount >= DAILY_PUBLISH_LIMIT) {
@@ -73,30 +75,28 @@ async function assertDailyPublishLimit() {
 }
 
 export async function publishPost(postId: string) {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    include: { mediaAssets: { orderBy: { order: "asc" } } }
-  });
+  await connectDB();
+  const post = await Post.findById(postId);
 
   if (!post) throw new Error("Post tidak ditemukan.");
   if (!post.mediaAssets.length) throw new Error("Post belum memiliki media.");
   if (post.status === "PUBLISHED") throw new Error("Post ini sudah published dan tidak bisa dipublish ulang.");
 
-  const account = await prisma.igAccount.findFirst({ orderBy: { updatedAt: "desc" } });
+  const mediaAssets = [...post.mediaAssets].sort((a, b) => a.order - b.order);
+  const account = await IgAccount.findOne().sort({ updatedAt: -1 });
   if (!account) throw new Error("Instagram account belum dikonfigurasi di Settings.");
 
   await assertDailyPublishLimit();
 
-  await prisma.post.update({
-    where: { id: post.id },
-    data: { status: "PUBLISHING", errorMessage: null }
-  });
+  post.status = "PUBLISHING";
+  post.errorMessage = null;
+  await post.save();
 
   const accessToken = decryptSecret(account.accessToken);
   let creationId: string;
 
   if (post.mediaType === "IMAGE") {
-    const image = post.mediaAssets[0];
+    const image = mediaAssets[0];
     const container = await createMediaContainer(
       account.igUserId,
       { imageUrl: image.url, caption: post.caption },
@@ -104,7 +104,7 @@ export async function publishPost(postId: string) {
     );
     creationId = container.id;
     await logPublish({
-      postId: post.id,
+      postId: post._id.toString(),
       action: "create_media_container",
       request: { igUserId: account.igUserId, imageUrl: image.url, caption: post.caption },
       response: container,
@@ -113,7 +113,7 @@ export async function publishPost(postId: string) {
   } else if (post.mediaType === "CAROUSEL") {
     const children: string[] = [];
 
-    for (const item of post.mediaAssets) {
+    for (const item of mediaAssets) {
       const child = await createMediaContainer(
         account.igUserId,
         { imageUrl: item.url, isCarouselItem: true },
@@ -121,7 +121,7 @@ export async function publishPost(postId: string) {
       );
       children.push(child.id);
       await logPublish({
-        postId: post.id,
+        postId: post._id.toString(),
         action: "create_carousel_child",
         request: { igUserId: account.igUserId, imageUrl: item.url, isCarouselItem: true, order: item.order },
         response: child,
@@ -136,14 +136,14 @@ export async function publishPost(postId: string) {
     );
     creationId = parent.id;
     await logPublish({
-      postId: post.id,
+      postId: post._id.toString(),
       action: "create_carousel_parent",
       request: { igUserId: account.igUserId, mediaType: "CAROUSEL", children, caption: post.caption },
       response: parent,
       status: "success"
     });
   } else {
-    const video = post.mediaAssets[0];
+    const video = mediaAssets[0];
     const container = await createMediaContainer(
       account.igUserId,
       { videoUrl: video.url, caption: post.caption, mediaType: "REELS" },
@@ -151,7 +151,7 @@ export async function publishPost(postId: string) {
     );
     creationId = container.id;
     await logPublish({
-      postId: post.id,
+      postId: post._id.toString(),
       action: "create_reels_container",
       request: { igUserId: account.igUserId, videoUrl: video.url, caption: post.caption, mediaType: "REELS" },
       response: container,
@@ -160,7 +160,7 @@ export async function publishPost(postId: string) {
 
     const status = await waitForContainerFinished(container.id, accessToken);
     await logPublish({
-      postId: post.id,
+      postId: post._id.toString(),
       action: "poll_reels_container",
       request: { containerId: container.id, fields: "status_code" },
       response: status,
@@ -176,7 +176,7 @@ export async function publishPost(postId: string) {
     instagramPermalink = publishedInfo.permalink ?? null;
   } catch (error) {
     await logPublish({
-      postId: post.id,
+      postId: post._id.toString(),
       action: "fetch_instagram_permalink",
       request: { mediaId: published.id, fields: "id,permalink" },
       response: { error: getErrorMessage(error) },
@@ -184,19 +184,15 @@ export async function publishPost(postId: string) {
     });
   }
 
-  await prisma.post.update({
-    where: { id: post.id },
-    data: {
-      status: "PUBLISHED",
-      publishedAt: new Date(),
-      igMediaId: published.id,
-      instagramPermalink,
-      errorMessage: null
-    }
-  });
+  post.status = "PUBLISHED";
+  post.publishedAt = new Date();
+  post.igMediaId = published.id;
+  post.instagramPermalink = instagramPermalink;
+  post.errorMessage = null;
+  await post.save();
 
   await logPublish({
-    postId: post.id,
+    postId: post._id.toString(),
     action: "publish_container",
     request: { igUserId: account.igUserId, creationId },
     response: { ...published, permalink: instagramPermalink },
@@ -222,10 +218,8 @@ export async function publishPostWithRetry(postId: string, retries = 1) {
       });
 
       if (attempt >= retries || !isTransientPublishError(error)) {
-        await prisma.post.update({
-          where: { id: postId },
-          data: { status: "FAILED", errorMessage: message }
-        });
+        await connectDB();
+        await Post.findByIdAndUpdate(postId, { status: "FAILED", errorMessage: message });
         throw error;
       }
     }

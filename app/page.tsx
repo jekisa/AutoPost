@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { RetryPostButton } from "@/components/retry-post-button";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { Post } from "@/models/Post";
 
 const statusStyles = {
   DRAFT: "bg-stone-100 text-stone-700",
@@ -14,6 +15,7 @@ const statusStyles = {
 };
 
 const validStatuses = ["DRAFT", "SCHEDULED", "PUBLISHING", "PUBLISHED", "FAILED"] as const;
+type PostStatus = (typeof validStatuses)[number];
 
 export default async function Dashboard({
   searchParams
@@ -24,12 +26,12 @@ export default async function Dashboard({
   if (!session) redirect("/login");
 
   const { status } = await searchParams;
-  const selectedStatus = validStatuses.includes(status as (typeof validStatuses)[number]) ? status : undefined;
-  const postsResult = await prisma.post
-    .findMany({
-      where: selectedStatus ? { status: selectedStatus as never } : undefined,
-      include: { mediaAssets: { orderBy: { order: "asc" } } },
-      orderBy: { createdAt: "desc" }
+  const selectedStatus = validStatuses.includes(status as PostStatus) ? (status as PostStatus) : undefined;
+  const postsResult = await connectDB()
+    .then(() => {
+      return Post.find(selectedStatus ? { status: selectedStatus } : {})
+        .sort({ createdAt: -1 })
+        .lean();
     })
     .then((posts) => ({ posts, error: null }))
     .catch((error: unknown) => {
@@ -70,8 +72,8 @@ export default async function Dashboard({
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           <p className="font-medium">Dashboard gagal membaca database.</p>
           <p className="mt-1">
-            Cek environment variable `DATABASE_URL` di Vercel dan pastikan migration Prisma sudah dijalankan pada database
-            production.
+            Cek environment variable `MONGODB_URI` di Vercel dan pastikan database MongoDB Atlas bisa diakses dari
+            deployment production.
           </p>
         </div>
       ) : null}
@@ -89,7 +91,7 @@ export default async function Dashboard({
           </thead>
           <tbody className="divide-y divide-stone-100">
             {posts.map((post) => (
-              <tr key={post.id}>
+              <tr key={post._id.toString()}>
                 <td className="px-4 py-3">
                   {post.mediaAssets.length ? (
                     <div className="flex items-center gap-2">
@@ -111,7 +113,7 @@ export default async function Dashboard({
                           {post.mediaAssets.slice(1, 4).map((asset) => (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              key={asset.id}
+                              key={asset._id.toString()}
                               src={asset.url}
                               alt=""
                               className="h-9 w-9 rounded border-2 border-white object-cover"
@@ -142,7 +144,7 @@ export default async function Dashboard({
                     <p className="mt-1 text-xs text-stone-500">Published: {post.publishedAt.toLocaleString()}</p>
                   ) : null}
                   {post.errorMessage ? <p className="mt-1 max-w-xs text-xs text-red-700">{post.errorMessage}</p> : null}
-                  {post.status === "FAILED" ? <RetryPostButton postId={post.id} /> : null}
+                  {post.status === "FAILED" ? <RetryPostButton postId={post._id.toString()} /> : null}
                 </td>
                 <td className="px-4 py-3">
                   {post.instagramPermalink ? (

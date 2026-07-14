@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
 import { getErrorMessage, publishPostWithRetry } from "@/lib/posts/publisher";
-import { prisma } from "@/lib/prisma";
+import { Post } from "@/models/Post";
+import { PublishLog } from "@/models/PublishLog";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
@@ -79,13 +81,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const post = await prisma.post.create({
-    data: {
-      caption,
-      mediaType,
-      status: publishMode === "SCHEDULE" ? "SCHEDULED" : "PUBLISHING",
-      scheduledAt
-    }
+  await connectDB();
+  const post = await Post.create({
+    caption,
+    mediaType,
+    status: publishMode === "SCHEDULE" ? "SCHEDULED" : "PUBLISHING",
+    scheduledAt,
+    mediaAssets: []
   });
 
   try {
@@ -95,45 +97,38 @@ export async function POST(request: Request) {
 
     await Promise.all(
       files.map(async (file, index) => {
-        const blob = await put(`instagram/${post.id}/${index}-${sanitizeFileName(file.name)}`, file, {
+        const blob = await put(`instagram/${post._id.toString()}/${index}-${sanitizeFileName(file.name)}`, file, {
           access: "public",
           addRandomSuffix: true,
           token: blobToken
         });
 
-        await prisma.mediaAsset.create({
-          data: {
-            postId: post.id,
-            url: blob.url,
-            order: index,
-            type: mediaType === "REELS" ? "VIDEO" : "IMAGE"
-          }
+        post.mediaAssets.push({
+          url: blob.url,
+          order: index,
+          type: mediaType === "REELS" ? "VIDEO" : "IMAGE"
         });
 
         return { url: blob.url, order: index };
       })
     );
+    await post.save();
 
     if (publishMode === "SCHEDULE") {
-      return NextResponse.json({ postId: post.id, mediaType, scheduledAt });
+      return NextResponse.json({ postId: post._id.toString(), mediaType, scheduledAt });
     }
 
-    const { published } = await publishPostWithRetry(post.id, 1);
-    return NextResponse.json({ postId: post.id, igMediaId: published.id, mediaType });
+    const { published } = await publishPostWithRetry(post._id.toString(), 1);
+    return NextResponse.json({ postId: post._id.toString(), igMediaId: published.id, mediaType });
   } catch (error) {
     const message = getErrorMessage(error);
-    await prisma.post.update({
-      where: { id: post.id },
-      data: { status: "FAILED", errorMessage: message }
-    });
-    await prisma.publishLog.create({
-      data: {
-        postId: post.id,
-        action: "publish_post",
-        request: { postId: post.id, mediaType },
-        response: { error: message },
-        status: "failed"
-      }
+    await Post.findByIdAndUpdate(post._id, { status: "FAILED", errorMessage: message });
+    await PublishLog.create({
+      postId: post._id,
+      action: "publish_post",
+      request: { postId: post._id.toString(), mediaType },
+      response: { error: message },
+      status: "failed"
     });
     return NextResponse.json({ error: message }, { status: 400 });
   }
