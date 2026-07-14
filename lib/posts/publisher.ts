@@ -116,14 +116,14 @@ export async function publishPost(postId: string) {
     for (const item of post.mediaAssets) {
       const child = await createMediaContainer(
         account.igUserId,
-        { imageUrl: item.url, mediaType: "CAROUSEL_ITEM" },
+        { imageUrl: item.url, isCarouselItem: true },
         accessToken
       );
       children.push(child.id);
       await logPublish({
         postId: post.id,
         action: "create_carousel_child",
-        request: { igUserId: account.igUserId, imageUrl: item.url, mediaType: "CAROUSEL_ITEM", order: item.order },
+        request: { igUserId: account.igUserId, imageUrl: item.url, isCarouselItem: true, order: item.order },
         response: child,
         status: "success"
       });

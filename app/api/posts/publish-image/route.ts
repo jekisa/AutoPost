@@ -7,6 +7,7 @@ import { getErrorMessage, publishPostWithRetry } from "@/lib/posts/publisher";
 import { prisma } from "@/lib/prisma";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
 
 const schema = z.object({
   caption: z.string().min(1).max(2200)
@@ -41,9 +42,14 @@ export async function POST(request: Request) {
   });
 
   try {
+    if (!blobToken) {
+      throw new Error("BLOB_READ_WRITE_TOKEN belum dikonfigurasi. Isi .env lalu restart server development.");
+    }
+
     const blob = await put(`instagram/${post.id}/${file.name}`, file, {
       access: "public",
-      addRandomSuffix: true
+      addRandomSuffix: true,
+      token: blobToken
     });
 
     await prisma.mediaAsset.create({

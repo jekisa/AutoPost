@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
 
 const schema = z.object({
   caption: z.string().min(1).max(2200),
@@ -88,11 +89,16 @@ export async function POST(request: Request) {
   });
 
   try {
+    if (!blobToken) {
+      throw new Error("BLOB_READ_WRITE_TOKEN belum dikonfigurasi. Isi .env lalu restart server development.");
+    }
+
     await Promise.all(
       files.map(async (file, index) => {
         const blob = await put(`instagram/${post.id}/${index}-${sanitizeFileName(file.name)}`, file, {
           access: "public",
-          addRandomSuffix: true
+          addRandomSuffix: true,
+          token: blobToken
         });
 
         await prisma.mediaAsset.create({

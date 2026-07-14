@@ -18,41 +18,46 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const duePosts = await prisma.post.findMany({
-    where: {
-      status: "SCHEDULED",
-      scheduledAt: { lte: new Date() }
-    },
-    orderBy: { scheduledAt: "asc" },
-    take: 10
-  });
-
-  const results = [];
-
-  for (const post of duePosts) {
-    const claimed = await prisma.post.updateMany({
+  try {
+    const duePosts = await prisma.post.findMany({
       where: {
-        id: post.id,
         status: "SCHEDULED",
         scheduledAt: { lte: new Date() }
       },
-      data: { status: "PUBLISHING", errorMessage: null }
+      orderBy: { scheduledAt: "asc" },
+      take: 10
     });
 
-    if (!claimed.count) {
-      results.push({ postId: post.id, status: "SKIPPED", error: "Post sudah diproses oleh worker lain." });
-      continue;
+    const results = [];
+
+    for (const post of duePosts) {
+      const claimed = await prisma.post.updateMany({
+        where: {
+          id: post.id,
+          status: "SCHEDULED",
+          scheduledAt: { lte: new Date() }
+        },
+        data: { status: "PUBLISHING", errorMessage: null }
+      });
+
+      if (!claimed.count) {
+        results.push({ postId: post.id, status: "SKIPPED", error: "Post sudah diproses oleh worker lain." });
+        continue;
+      }
+
+      try {
+        const { published, attempts } = await publishPostWithRetry(post.id, 1);
+        results.push({ postId: post.id, status: "PUBLISHED", igMediaId: published.id, attempts });
+      } catch (error) {
+        results.push({ postId: post.id, status: "FAILED", error: getErrorMessage(error) });
+      }
     }
 
-    try {
-      const { published, attempts } = await publishPostWithRetry(post.id, 1);
-      results.push({ postId: post.id, status: "PUBLISHED", igMediaId: published.id, attempts });
-    } catch (error) {
-      results.push({ postId: post.id, status: "FAILED", error: getErrorMessage(error) });
-    }
+    return NextResponse.json({ checkedAt: new Date().toISOString(), count: duePosts.length, results });
+  } catch (error) {
+    console.error("Cron publish-scheduled failed", error);
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
-
-  return NextResponse.json({ checkedAt: new Date().toISOString(), count: duePosts.length, results });
 }
 
 export const POST = GET;

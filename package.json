@@ -4,7 +4,8 @@
   "private": true,
   "description": "Instagram Auto-Post App",
   "scripts": {
-    "dev": "node ./scripts/next-with-patches.js dev --webpack",
+    "dev": "node ./scripts/dev-with-scheduler.js --hostname 127.0.0.1 --port 3001",
+    "dev:next": "node ./scripts/next-with-patches.js dev --webpack --hostname 127.0.0.1 --port 3001",
     "build": "node ./scripts/next-with-patches.js build --webpack",
     "start": "next start",
     "scheduler": "node scripts/publish-scheduled-worker.mjs",

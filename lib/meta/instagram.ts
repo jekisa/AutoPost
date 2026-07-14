@@ -5,7 +5,8 @@ export type MediaContainerInput = {
   imageUrl?: string;
   videoUrl?: string;
   caption?: string;
-  mediaType?: "REELS" | "CAROUSEL" | "CAROUSEL_ITEM";
+  mediaType?: "REELS" | "CAROUSEL";
+  isCarouselItem?: boolean;
   children?: string[];
 };
 
@@ -92,6 +93,7 @@ export async function createMediaContainer(
   if (input.videoUrl) body.set("video_url", input.videoUrl);
   if (input.caption) body.set("caption", input.caption);
   if (input.mediaType) body.set("media_type", input.mediaType);
+  if (input.isCarouselItem) body.set("is_carousel_item", "true");
   if (input.children?.length) body.set("children", input.children.join(","));
 
   return graphRequest<{ id: string }>(`/${igUserId}/media`, accessToken, {
