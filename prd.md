@@ -57,7 +57,7 @@ Aplikasi web berbasis **Next.js** untuk mengotomasi publish konten (gambar, caro
 
 ### 6.3 Scheduler
 - Simpan scheduled post ke database dengan `scheduled_at`.
-- Cron job / background worker (Vercel Cron atau node-cron) cek setiap beberapa menit, eksekusi post yang waktunya sudah lewat dan belum di-publish.
+- Cron job / background worker lewat layanan cron eksternal (cron-job.org atau setara) atau node-cron cek setiap beberapa menit, eksekusi post yang waktunya sudah lewat dan belum di-publish. Vercel Cron Jobs tidak dipakai di deployment Hobby plan karena frekuensinya dibatasi 1x per hari.
 - Retry otomatis 1x jika gagal karena rate limit atau error sementara, lalu tandai `failed` jika tetap gagal.
 
 ### 6.4 Settings / Connection
@@ -76,7 +76,7 @@ Aplikasi web berbasis **Next.js** untuk mengotomasi publish konten (gambar, caro
 - **Database**: PostgreSQL (misal via Supabase atau Neon) — tabel: `posts`, `media_assets`, `settings`/`ig_accounts`.
 - **ORM**: Prisma.
 - **File storage**: Vercel Blob atau Cloudinary (untuk dapat URL publik yang dibutuhkan Meta API).
-- **Scheduler**: Vercel Cron Jobs (jika deploy di Vercel) memanggil API route `/api/cron/publish-scheduled` secara periodik.
+- **Scheduler**: Layanan cron eksternal (cron-job.org atau setara) memanggil API route `/api/cron/publish-scheduled` secara periodik. Alasan: Vercel Hobby plan membatasi frekuensi Vercel Cron Jobs menjadi 1x per hari, sehingga kurang presisi untuk scheduled post.
 - **Auth**: NextAuth.js (credential sederhana atau login via email, single-user cukup untuk v1).
 - **Integrasi Meta**: Wrapper service `lib/meta/instagram.ts` berisi fungsi:
   - `createMediaContainer(igUserId, { imageUrl | videoUrl, caption, mediaType })`
@@ -150,7 +150,7 @@ ENCRYPTION_KEY=                 # untuk enkripsi access token di DB
 - Support video dengan polling status container.
 
 **Fase 4 — Scheduler**
-- Simpan scheduled post + cron job eksekusi.
+- Simpan scheduled post + eksekusi via layanan cron eksternal (cron-job.org atau setara), bukan Vercel Cron Jobs pada Hobby plan karena limit frekuensi 1x per hari.
 - Notifikasi/status update otomatis.
 
 **Fase 5 — Polish**

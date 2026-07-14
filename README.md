@@ -117,7 +117,7 @@ Aplikasi berjalan di `http://localhost:3000`.
 : Key untuk enkripsi access token yang disimpan di database.
 
 `CRON_SECRET`
-: Secret untuk melindungi endpoint cron.
+: Secret untuk melindungi endpoint cron. Nilai yang sama harus dikirim oleh layanan cron eksternal sebagai header `Authorization: Bearer {CRON_SECRET}`.
 
 `APP_URL`
 : URL aplikasi, misalnya `http://localhost:3000` saat lokal atau domain production saat deploy.
@@ -137,7 +137,7 @@ Aplikasi berjalan di `http://localhost:3000`.
 11. Backend publish container ke Instagram.
 12. Dashboard menampilkan status dan link live Instagram jika permalink berhasil diambil.
 
-## Scheduler
+## Menjalankan Scheduler
 
 Endpoint cron ada di:
 
@@ -145,7 +145,25 @@ Endpoint cron ada di:
 /api/cron/publish-scheduled
 ```
 
-Jika deploy di Vercel, konfigurasi cron tersedia di `vercel.json`. Untuk worker lokal, gunakan:
+Scheduler production tidak memakai Vercel Cron Jobs karena Vercel Hobby plan membatasi cron hanya 1x per hari. Gunakan layanan cron eksternal seperti cron-job.org yang gratis untuk memanggil endpoint ini secara berkala.
+
+Setup di cron-job.org:
+
+1. Buat akun di cron-job.org.
+2. Buat cronjob baru.
+3. Isi URL dengan `https://{domain-project}/api/cron/publish-scheduled`.
+4. Set interval, rekomendasi setiap 5 menit.
+5. Di bagian Advanced, tambahkan HTTP header `Authorization: Bearer {CRON_SECRET}` sesuai isi environment variable `CRON_SECRET` di project.
+
+Test manual endpoint:
+
+```bash
+curl -X POST https://{domain-project}/api/cron/publish-scheduled -H 'Authorization: Bearer {CRON_SECRET}'
+```
+
+Jika nanti upgrade ke Vercel Pro, scheduler opsional bisa dipindah kembali ke Vercel Cron Jobs dengan menambahkan kembali konfigurasi `crons` di `vercel.json`.
+
+Untuk worker lokal, gunakan:
 
 ```bash
 npm run scheduler

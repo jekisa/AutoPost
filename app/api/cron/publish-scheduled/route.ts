@@ -9,8 +9,7 @@ function isAuthorized(request: Request) {
   if (!secret) return false;
 
   const auth = request.headers.get("authorization");
-  const headerSecret = request.headers.get("x-cron-secret");
-  return auth === `Bearer ${secret}` || headerSecret === secret;
+  return auth === `Bearer ${secret}`;
 }
 
 export async function GET(request: Request) {
