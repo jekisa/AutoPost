@@ -93,7 +93,10 @@ Aplikasi berjalan di `http://localhost:3000`.
 ## Environment Variables
 
 `DATABASE_URL`
-: Connection string PostgreSQL. Jika password database berisi karakter khusus seperti `@`, `#`, `:`, `/`, atau `?`, encode dulu password-nya agar URL valid.
+: Connection string PostgreSQL untuk runtime. Jika memakai Supabase di Vercel, gunakan Transaction Pooler dengan format `postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true`. Jika password database berisi karakter khusus seperti `@`, `#`, `:`, `/`, atau `?`, encode dulu password-nya agar URL valid.
+
+`DIRECT_URL`
+: Connection string PostgreSQL direct untuk Prisma migration. Format Supabase: `postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres`.
 
 `NEXTAUTH_SECRET`
 : Secret untuk NextAuth. Gunakan string random panjang.
