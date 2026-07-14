@@ -13,6 +13,8 @@ const statusStyles = {
   FAILED: "bg-red-100 text-red-800"
 };
 
+const validStatuses = ["DRAFT", "SCHEDULED", "PUBLISHING", "PUBLISHED", "FAILED"] as const;
+
 export default async function Dashboard({
   searchParams
 }: {
@@ -22,11 +24,23 @@ export default async function Dashboard({
   if (!session) redirect("/login");
 
   const { status } = await searchParams;
-  const posts = await prisma.post.findMany({
-    where: status ? { status: status as never } : undefined,
-    include: { mediaAssets: { orderBy: { order: "asc" } } },
-    orderBy: { createdAt: "desc" }
-  });
+  const selectedStatus = validStatuses.includes(status as (typeof validStatuses)[number]) ? status : undefined;
+  const postsResult = await prisma.post
+    .findMany({
+      where: selectedStatus ? { status: selectedStatus as never } : undefined,
+      include: { mediaAssets: { orderBy: { order: "asc" } } },
+      orderBy: { createdAt: "desc" }
+    })
+    .then((posts) => ({ posts, error: null }))
+    .catch((error: unknown) => {
+      console.error("Dashboard failed to load posts", error);
+      return {
+        posts: [],
+        error: error instanceof Error ? error.message : "Database tidak bisa diakses."
+      };
+    });
+
+  const { posts } = postsResult;
 
   return (
     <div className="space-y-6">
@@ -51,6 +65,16 @@ export default async function Dashboard({
           </Link>
         ))}
       </div>
+
+      {postsResult.error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-medium">Dashboard gagal membaca database.</p>
+          <p className="mt-1">
+            Cek environment variable `DATABASE_URL` di Vercel dan pastikan migration Prisma sudah dijalankan pada database
+            production.
+          </p>
+        </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
         <table className="w-full text-left text-sm">
