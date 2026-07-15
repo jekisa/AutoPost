@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import { startOfWIBDayAsUTC } from "@/lib/timezone";
 import { Post, POST_STATUSES } from "@/models/Post";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -31,8 +32,7 @@ export async function GET(request: Request) {
   const sort: Record<string, 1 | -1> = sortableFields.has(sortBy) ? { [sortBy]: sortDirection } : { createdAt: -1 };
 
   await connectDB();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayWIBStart = startOfWIBDayAsUTC(new Date());
 
   const [posts, totalCount, allCount, publishedToday, scheduledUpcoming, failedCount] = await Promise.all([
     Post.find(filter)
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       .lean(),
     Post.countDocuments(filter),
     Post.countDocuments(),
-    Post.countDocuments({ status: "PUBLISHED", publishedAt: { $gte: today } }),
+    Post.countDocuments({ status: "PUBLISHED", publishedAt: { $gte: todayWIBStart } }),
     Post.countDocuments({ status: "SCHEDULED", scheduledAt: { $gte: new Date() } }),
     Post.countDocuments({ status: "FAILED" })
   ]);

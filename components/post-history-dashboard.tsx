@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PostListItem, PostStatus, usePosts, useRetryPost } from "@/hooks/usePosts";
+import { formatToWIB } from "@/lib/timezone";
 
 const statuses: Array<{ value?: PostStatus; label: string }> = [
   { label: "ALL" },
@@ -200,7 +201,7 @@ export function PostHistoryDashboard() {
         accessorKey: "createdAt",
         enableSorting: true,
         cell: ({ row }) => (
-          <span title={new Date(row.original.createdAt).toLocaleString()} className="text-sm text-slate-500 dark:text-slate-400">
+          <span title={formatToWIB(row.original.createdAt)} className="text-sm text-slate-500 dark:text-slate-400">
             {relativeTime(row.original.createdAt)}
           </span>
         )
@@ -367,6 +368,16 @@ export function PostHistoryDashboard() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {post.scheduledAt ? (
+                    <span className="rounded-full bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 dark:bg-sky-950 dark:text-sky-200">
+                      Scheduled: {formatToWIB(post.scheduledAt)}
+                    </span>
+                  ) : null}
+                  {post.publishedAt ? (
+                    <span className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200">
+                      Published: {formatToWIB(post.publishedAt)}
+                    </span>
+                  ) : null}
                   {post.instagramPermalink ? (
                     <a href={post.instagramPermalink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-bold">
                       Open <ExternalLink size={13} />

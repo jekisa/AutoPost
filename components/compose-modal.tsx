@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ComposeForm } from "@/components/compose-form";
 import type { PostListItem } from "@/hooks/usePosts";
 import { useRetryPost } from "@/hooks/usePosts";
+import { formatToWIB } from "@/lib/timezone";
 
 type Props = {
   open: boolean;
@@ -134,13 +135,13 @@ export function ComposeModal({ open, mode, scheduledAt, post, onClose, onSuccess
                     <div>
                       <dt className="font-bold text-slate-500">Schedule</dt>
                       <dd className="mt-1 text-slate-950 dark:text-white">
-                        {post.scheduledAt ? new Date(post.scheduledAt).toLocaleString() : "-"}
+                        {formatToWIB(post.scheduledAt)}
                       </dd>
                     </div>
                     <div>
                       <dt className="font-bold text-slate-500">Published</dt>
                       <dd className="mt-1 text-slate-950 dark:text-white">
-                        {post.publishedAt ? new Date(post.publishedAt).toLocaleString() : "-"}
+                        {formatToWIB(post.publishedAt)}
                       </dd>
                     </div>
                   </dl>

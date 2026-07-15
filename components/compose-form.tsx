@@ -3,6 +3,7 @@
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CalendarClock, ImagePlus, Send, Trash2, Upload, Video } from "lucide-react";
 import { useCreatePost } from "@/hooks/usePosts";
+import { formatToWIB } from "@/lib/timezone";
 
 type MediaType = "IMAGE" | "CAROUSEL" | "REELS";
 type PublishMode = "NOW" | "SCHEDULE";
@@ -244,14 +245,14 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
     formData.set("caption", caption);
     formData.set("mediaType", mediaType);
     formData.set("publishMode", publishMode);
-    if (publishMode === "SCHEDULE") formData.set("scheduledAt", new Date(scheduledAt).toISOString());
+    if (publishMode === "SCHEDULE") formData.set("scheduledAt", scheduledAt);
     media.forEach((item) => formData.append("media", item.file, item.file.name));
 
     createPost.mutate(formData, {
       onSuccess: (data) => {
         setMessage(
           publishMode === "SCHEDULE"
-            ? `Scheduled ${data.mediaType} untuk ${new Date(data.scheduledAt).toLocaleString()}.`
+            ? `Scheduled ${data.mediaType} untuk ${formatToWIB(data.scheduledAt)}.`
             : `Published ${data.mediaType}. IG Media ID: ${data.igMediaId}`
         );
         onSuccess?.();
@@ -430,7 +431,7 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
           </div>
           {publishMode === "SCHEDULE" ? (
             <label className="block space-y-2 text-sm font-medium">
-              Publish date & time
+              Publish date & time (WIB)
               <input
                 type="datetime-local"
                 value={scheduledAt}

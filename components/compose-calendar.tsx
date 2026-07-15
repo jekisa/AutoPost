@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ComposeModal } from "@/components/compose-modal";
 import { useCalendarPosts } from "@/hooks/useCalendarPosts";
 import type { PostListItem, PostStatus } from "@/hooks/usePosts";
+import { formatToWIB, getNowInWIB, getWIBDateKey, toWIBDateInputValue } from "@/lib/timezone";
 
 const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const monthFormatter = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" });
@@ -28,7 +29,12 @@ const statusDot: Record<PostStatus, string> = {
 };
 
 function dateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return getWIBDateKey(date);
+}
+
+function isWeekend(date: Date) {
+  const day = date.getDay();
+  return day === 0 || day === 6;
 }
 
 function startOfCalendar(month: Date) {
@@ -51,7 +57,7 @@ function buildDays(month: Date) {
 function toLocalInputValue(date: Date) {
   const next = new Date(date);
   next.setHours(9, 0, 0, 0);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}T${String(next.getHours()).padStart(2, "0")}:${String(next.getMinutes()).padStart(2, "0")}`;
+  return toWIBDateInputValue(next);
 }
 
 function postDateKey(post: PostListItem) {
@@ -107,7 +113,7 @@ function MiniPostFrame({ post }: { post: PostListItem }) {
 }
 
 export function ComposeCalendar() {
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => getNowInWIB(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -187,11 +193,19 @@ export function ComposeCalendar() {
         </div>
 
         <div className="grid grid-cols-7 border-b border-slate-200 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:border-slate-800">
-          {weekdays.map((day) => (
-            <div key={day} className="px-2 py-3">
+          {weekdays.map((day, index) => {
+            const weekend = index >= 5;
+            return (
+            <div
+              key={day}
+              className={`px-2 py-3 ${
+                weekend ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" : "bg-white dark:bg-slate-900"
+              }`}
+            >
               {day}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-7">
@@ -210,12 +224,19 @@ export function ComposeCalendar() {
                 const posts = postsByDay.get(key) ?? [];
                 const inMonth = day.getMonth() === month.getMonth();
                 const isToday = key === dateKey(today);
+                const weekend = isWeekend(day);
                 const visible = posts.slice(0, 3);
                 return (
                   <div
                     key={key}
-                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50 sm:min-h-36 sm:p-2 ${
-                      inMonth ? "bg-white dark:bg-slate-900" : "bg-slate-50/70 text-slate-400 dark:bg-slate-950/50"
+                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors dark:border-slate-800 sm:min-h-36 sm:p-2 ${
+                      inMonth
+                        ? weekend
+                          ? "bg-slate-100/70 hover:bg-slate-100 dark:bg-slate-800/70 dark:hover:bg-slate-800"
+                          : "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50"
+                        : weekend
+                          ? "bg-slate-100/80 text-slate-400 dark:bg-slate-800/45"
+                          : "bg-slate-50/70 text-slate-400 dark:bg-slate-950/50"
                     }`}
                   >
                     <button
@@ -231,7 +252,7 @@ export function ComposeCalendar() {
                       type="button"
                       onClick={() => openCreate(day)}
                       className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 dark:bg-white dark:text-slate-950"
-                      aria-label={`Create post on ${day.toLocaleDateString()}`}
+                      aria-label={`Create post on ${formatToWIB(day, "dd MMM yyyy")}`}
                     >
                       <Plus size={14} />
                     </button>
@@ -259,7 +280,7 @@ export function ComposeCalendar() {
       {selectedMobileDay ? (
         <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-[2rem] border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 md:left-auto md:right-6 md:w-96 md:rounded-[2rem]">
           <div className="flex items-center justify-between">
-            <h3 className="font-black text-slate-950 dark:text-white">{selectedMobileDay.toLocaleDateString("id-ID", { dateStyle: "full" })}</h3>
+            <h3 className="font-black text-slate-950 dark:text-white">{formatToWIB(selectedMobileDay, "EEEE, dd MMM yyyy")}</h3>
             <button type="button" onClick={() => setSelectedMobileDay(null)} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
               <MoreHorizontal size={18} />
             </button>

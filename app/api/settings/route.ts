@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { getAccountInfo } from "@/lib/meta/instagram";
+import { convertWIBInputToUTC } from "@/lib/timezone";
 import { IgAccount } from "@/models/IgAccount";
 import { PublishLog } from "@/models/PublishLog";
 
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
         pageId,
         username: accountInfo.username ?? accountInfo.name,
         accessToken,
-        tokenExpiresAt: tokenExpiresAt ? new Date(tokenExpiresAt) : null
+        tokenExpiresAt: tokenExpiresAt ? convertWIBInputToUTC(tokenExpiresAt) : null
       },
       { new: true, upsert: true, runValidators: true }
     );

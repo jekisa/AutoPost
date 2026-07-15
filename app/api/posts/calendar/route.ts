@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import { startOfNextWIBMonthAsUTC, startOfWIBMonthAsUTC } from "@/lib/timezone";
 import { Post } from "@/models/Post";
 
 function parseMonth(value: string | null) {
@@ -21,8 +22,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const year = parseYear(searchParams.get("year"));
   const month = parseMonth(searchParams.get("month"));
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 1);
+  const start = startOfWIBMonthAsUTC(year, month);
+  const end = startOfNextWIBMonthAsUTC(year, month);
 
   await connectDB();
   const posts = await Post.find({

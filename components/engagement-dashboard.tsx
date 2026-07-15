@@ -21,12 +21,13 @@ import {
   YAxis
 } from "recharts";
 import { EngagementPost, useEngagementDashboard } from "@/hooks/useEngagementDashboard";
+import { formatToWIB, getWIBDateKey } from "@/lib/timezone";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const percent = new Intl.NumberFormat("en", { style: "percent", maximumFractionDigits: 2 });
 
 function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }) : "-";
+  return value ? formatToWIB(value, "dd MMM yyyy") : "-";
 }
 
 function SkeletonBlock({ className = "" }: { className?: string }) {
@@ -83,7 +84,7 @@ export function EngagementDashboard() {
         .slice()
         .sort((a, b) => new Date(a.publishedAt ?? 0).getTime() - new Date(b.publishedAt ?? 0).getTime())
         .map((post, index) => ({
-          name: post.publishedAt ? formatDate(post.publishedAt) : `Post ${index + 1}`,
+          name: post.publishedAt ? getWIBDateKey(post.publishedAt) : `Post ${index + 1}`,
           engagement: post.metrics.engagement,
           likes: post.metrics.likes,
           comments: post.metrics.comments,
@@ -103,7 +104,7 @@ export function EngagementDashboard() {
             <Thumbnail post={row.original} />
             <div className="min-w-0">
               <p className="line-clamp-2 max-w-xs text-sm font-bold text-slate-900 dark:text-slate-100">{row.original.caption}</p>
-              <p className="mt-1 text-xs text-slate-500">{formatDate(row.original.publishedAt)}</p>
+              <p className="mt-1 text-xs text-slate-500">{formatToWIB(row.original.publishedAt)}</p>
             </div>
           </div>
         )
@@ -293,7 +294,7 @@ export function EngagementDashboard() {
                 <Thumbnail post={post} />
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-sm font-bold text-slate-900 dark:text-slate-100">{post.caption}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatDate(post.publishedAt)}</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatToWIB(post.publishedAt)}</p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">

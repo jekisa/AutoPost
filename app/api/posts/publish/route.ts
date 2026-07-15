@@ -5,6 +5,7 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { getErrorMessage, publishPostWithRetry } from "@/lib/posts/publisher";
+import { convertWIBInputToUTC } from "@/lib/timezone";
 import { Post } from "@/models/Post";
 import { PublishLog } from "@/models/PublishLog";
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   const files = formData.getAll("media").filter((item): item is File => item instanceof File && item.size > 0);
   const { caption, mediaType, publishMode } = parsed.data;
   const scheduledAt =
-    publishMode === "SCHEDULE" && parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null;
+    publishMode === "SCHEDULE" && parsed.data.scheduledAt ? convertWIBInputToUTC(parsed.data.scheduledAt) : null;
 
   if (publishMode === "SCHEDULE" && (!scheduledAt || Number.isNaN(scheduledAt.getTime()))) {
     return NextResponse.json({ error: "Tanggal dan jam schedule tidak valid." }, { status: 400 });

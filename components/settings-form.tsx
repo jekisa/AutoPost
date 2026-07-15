@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { formatToWIB } from "@/lib/timezone";
 
 type Props = {
   initialValues?: {
@@ -45,7 +46,7 @@ export function SettingsForm({ initialValues }: Props) {
         <textarea name="accessToken" required rows={4} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-950" />
       </label>
       <label className="block space-y-2 text-sm font-bold text-slate-800 dark:text-slate-200">
-        Token Expires At
+        Token Expires At (WIB)
         <input name="tokenExpiresAt" type="datetime-local" className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-950" />
       </label>
       <button disabled={loading} className="rounded-full bg-teal-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-60">
@@ -53,7 +54,7 @@ export function SettingsForm({ initialValues }: Props) {
       </button>
       {message ? <p className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700 dark:bg-slate-950 dark:text-slate-300">{message}</p> : null}
       {initialValues?.tokenExpiresAt ? (
-        <p className="text-xs text-slate-500 dark:text-slate-400">Stored token expiry: {initialValues.tokenExpiresAt.toLocaleString()}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Stored token expiry: {formatToWIB(initialValues.tokenExpiresAt)}</p>
       ) : null}
     </form>
   );
