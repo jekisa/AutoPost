@@ -11,7 +11,7 @@ dist/
 
 # Environment variables
 .env
-.env*.local
+.env*
 !.env.example
 
 # Logs
@@ -26,10 +26,6 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
-
-# Prisma
-prisma/*.db
-prisma/*.db-journal
 
 # Vercel
 .vercel/

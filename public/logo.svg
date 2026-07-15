@@ -1,0 +1,21 @@
+<svg viewBox="0 0 320 96" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="markGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97362"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark: rounded square with upward "publish" arrow -->
+  <rect x="8" y="8" width="80" height="80" rx="22" fill="url(#markGradient)"/>
+  <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M48 62 V30"/>
+    <path d="M34 44 L48 30 L62 44"/>
+    <path d="M32 68 H64"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="104" y="46" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#1F2937">Auto</text>
+  <text x="104" y="46" dx="66" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#F97362">Post</text>
+  <text x="104" y="68" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="500" fill="#6B7280" letter-spacing="2">INSTAGRAM AUTOMATION</text>
+</svg>

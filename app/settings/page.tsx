@@ -15,8 +15,8 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold">Instagram Connection</h1>
-        <p className="mt-1 text-sm text-stone-600">Simpan long-lived token Meta dan verifikasi koneksi akun.</p>
+        <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl dark:text-white">Instagram Connection</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">Simpan long-lived token Meta dan verifikasi koneksi akun.</p>
       </div>
       <SettingsForm
         initialValues={

@@ -1,16 +1,18 @@
 # AutoPost
 
-AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, dan publish konten ke Instagram Business melalui Meta Graph API. Aplikasi mendukung single image, carousel, dan Reels, lengkap dengan dashboard status publish, retry, logging, dan link live Instagram setelah publish berhasil.
+AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, publish, dan memantau engagement konten Instagram Business melalui Meta Graph API. Aplikasi mendukung single image, carousel, dan Reels, lengkap dengan kalender konten, scheduler eksternal, retry, logging, dashboard insights real-time, dan link live Instagram setelah publish berhasil.
 
 ## Fitur Utama
 
 - Login admin sederhana dengan NextAuth Credentials.
 - Settings koneksi Instagram: IG User ID, Page ID, access token, dan test connection.
-- Compose post untuk single image, carousel 2-10 gambar, dan Reels.
+- Compose Calendar bulanan untuk menjadwalkan konten dari tanggal yang dipilih.
+- Modal compose untuk single image, carousel 2-10 gambar, dan Reels.
 - Drag & drop media, preview, validasi ukuran file, durasi video dasar, dan aspect ratio gambar 4:5 sampai 1.91:1.
 - Publish sekarang atau schedule post.
 - Scheduler untuk memproses post terjadwal lewat cron.
-- Dashboard riwayat post dengan status, error message, retry, dan link live Instagram jika tersedia.
+- Dashboard engagement real-time dari Instagram Insights API untuk post yang sudah published.
+- Post History table reusable dengan status, retry, pagination, dan link live Instagram.
 - Log request/response publish untuk debugging.
 
 ## Tech Stack
@@ -19,6 +21,9 @@ AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, dan publish kon
 - React
 - TypeScript
 - Tailwind CSS
+- TanStack Query
+- TanStack Table
+- Recharts
 - Mongoose
 - MongoDB Atlas
 - NextAuth.js
@@ -30,7 +35,7 @@ AutoPost adalah aplikasi web Next.js untuk upload, menjadwalkan, dan publish kon
 - Node.js 20 atau lebih baru
 - MongoDB Atlas database
 - Vercel Blob token
-- Meta App dengan permission Instagram Content Publishing
+- Meta App dengan permission Instagram Content Publishing dan Instagram Insights (`instagram_manage_insights`)
 - Instagram Business Account dan Facebook Page yang sudah terhubung
 
 ## Setup Lokal
@@ -78,6 +83,12 @@ npm run dev
 
 Aplikasi berjalan di `http://localhost:3000`.
 
+5. Opsional: isi data demo ke MongoDB untuk menguji UI.
+
+```bash
+npm run seed
+```
+
 ## Environment Variables
 
 `MONGODB_URI`
@@ -101,6 +112,8 @@ Aplikasi berjalan di `http://localhost:3000`.
 `META_APP_ID` dan `META_APP_SECRET`
 : Kredensial Meta App.
 
+`META_APP_ID` saat ini disiapkan untuk konfigurasi Meta App. Publish dan insights menggunakan access token yang disimpan dari halaman Settings.
+
 `ENCRYPTION_KEY`
 : Key untuk enkripsi access token yang disimpan di database.
 
@@ -114,16 +127,40 @@ Aplikasi berjalan di `http://localhost:3000`.
 
 1. Admin login.
 2. Buka Settings dan simpan IG User ID, Page ID, dan access token.
-3. Buka Compose.
-4. Pilih tipe post: Single Image, Carousel, atau Reels.
-5. Upload atau drag & drop media.
-6. Isi caption.
-7. Pilih `Publish Now` atau `Schedule`.
-8. File diupload ke Vercel Blob.
-9. Backend membuat media container di Meta Graph API.
-10. Untuk Reels, backend polling sampai container selesai diproses.
-11. Backend publish container ke Instagram.
-12. Dashboard menampilkan status dan link live Instagram jika permalink berhasil diambil.
+3. Buka Compose Calendar.
+4. Klik tombol `+` pada tanggal kalender atau `New Post`.
+5. Pilih tipe post: Single Image, Carousel, atau Reels.
+6. Upload atau drag & drop media.
+7. Isi caption.
+8. Pilih `Publish Now` atau `Schedule`.
+9. File diupload ke Vercel Blob.
+10. Backend membuat media container di Meta Graph API.
+11. Untuk Reels, backend polling sampai container selesai diproses.
+12. Backend publish container ke Instagram.
+13. Dashboard menampilkan engagement dari Instagram Insights API untuk post yang sudah published.
+
+## Dashboard Engagement
+
+Dashboard utama (`/`) mengambil insight real-time dari Meta Graph API setiap dibuka melalui endpoint internal:
+
+```text
+/api/dashboard/engagement
+```
+
+Metric yang dipakai:
+
+- Image/Carousel: `reach`, `likes`, `comments`, `saved`
+- Reels: `reach`, `likes`, `comments`, `saved`, `plays`, `shares`
+
+Catatan:
+
+- Metric `impressions` tidak dipakai karena sudah deprecated/tidak tersedia untuk banyak akun dan versi Graph API.
+- Post demo dengan `igMediaId` tidak valid akan di-skip dan ditampilkan sebagai data uji/demo, bukan sebagai error teknis.
+- Pastikan token Meta punya permission `instagram_manage_insights`.
+
+## Compose Calendar
+
+Route `/compose` menampilkan kalender bulanan. Klik tanggal atau tombol `+` untuk membuka modal compose dengan tanggal schedule otomatis terisi. Pada mobile, kalender menampilkan dot status dan daftar post per tanggal dalam bottom sheet.
 
 ## Menjalankan Scheduler
 
@@ -165,6 +202,7 @@ npm run build
 npm run start
 npm run lint
 npm run scheduler
+npm run seed
 ```
 
 ## Validasi Media
@@ -222,10 +260,12 @@ app/
   login/
   settings/
 components/
+hooks/
 lib/
   meta/
   posts/
 models/
+public/
 scripts/
 ```
 

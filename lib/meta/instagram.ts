@@ -26,6 +26,16 @@ export type PublishedMediaInfo = {
   permalink?: string;
 };
 
+export type MediaInsightValue = {
+  name: string;
+  values?: Array<{ value?: number }>;
+};
+
+export type MediaInsights = {
+  metrics: Record<string, number>;
+  unavailableMetrics: string[];
+};
+
 type MetaErrorBody = {
   error?: {
     message?: string;
@@ -158,4 +168,28 @@ export async function getAccountInfo(igUserId: string, accessToken: string) {
     `/${igUserId}?fields=${encodeURIComponent("id,username,name")}`,
     accessToken
   );
+}
+
+function getInsightMetricNames(mediaType: "IMAGE" | "CAROUSEL" | "REELS") {
+  const base = ["reach", "likes", "comments", "saved"];
+  const reels = ["plays", "shares"];
+  return mediaType === "REELS" ? [...base, ...reels] : base;
+}
+
+async function requestMediaInsights(mediaId: string, metrics: string[], accessToken: string) {
+  return graphRequest<{ data: MediaInsightValue[] }>(
+    `/${mediaId}/insights?metric=${encodeURIComponent(metrics.join(","))}`,
+    accessToken
+  );
+}
+
+export async function getMediaInsights(mediaId: string, mediaType: "IMAGE" | "CAROUSEL" | "REELS", accessToken: string): Promise<MediaInsights> {
+  const requestedMetrics = getInsightMetricNames(mediaType);
+  const response = await requestMediaInsights(mediaId, requestedMetrics, accessToken);
+
+  const metrics = Object.fromEntries(
+    response.data.map((item) => [item.name, Number(item.values?.[0]?.value ?? 0)])
+  );
+
+  return { metrics, unavailableMetrics: [] };
 }
