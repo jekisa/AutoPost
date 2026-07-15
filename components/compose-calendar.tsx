@@ -226,18 +226,20 @@ export function ComposeCalendar() {
                 const isToday = key === dateKey(today);
                 const weekend = isWeekend(day);
                 const visible = posts.slice(0, 3);
+                const isEmpty = posts.length === 0;
+                const cellBackground = isToday
+                  ? "bg-[#F97362]/[0.08] hover:bg-[#F97362]/[0.12] ring-2 ring-inset ring-[#7C3AED]/70 dark:bg-[#7C3AED]/[0.12] dark:hover:bg-[#7C3AED]/[0.18] dark:ring-[#F97362]/70"
+                  : inMonth
+                    ? weekend
+                      ? "bg-slate-100/70 hover:bg-slate-100 dark:bg-slate-800/70 dark:hover:bg-slate-800"
+                      : "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50"
+                    : weekend
+                      ? "bg-slate-100/80 text-slate-400 dark:bg-slate-800/45"
+                      : "bg-slate-50/70 text-slate-400 dark:bg-slate-950/50";
                 return (
                   <div
                     key={key}
-                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors dark:border-slate-800 sm:min-h-36 sm:p-2 ${
-                      inMonth
-                        ? weekend
-                          ? "bg-slate-100/70 hover:bg-slate-100 dark:bg-slate-800/70 dark:hover:bg-slate-800"
-                          : "bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50"
-                        : weekend
-                          ? "bg-slate-100/80 text-slate-400 dark:bg-slate-800/45"
-                          : "bg-slate-50/70 text-slate-400 dark:bg-slate-950/50"
-                    }`}
+                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors dark:border-slate-800 sm:min-h-36 sm:p-2 ${cellBackground}`}
                   >
                     <button
                       type="button"
@@ -251,7 +253,9 @@ export function ComposeCalendar() {
                     <button
                       type="button"
                       onClick={() => openCreate(day)}
-                      className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 dark:bg-white dark:text-slate-950"
+                      className={`absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-white transition-opacity dark:bg-white dark:text-slate-950 ${
+                        isEmpty ? "opacity-30 sm:opacity-25 sm:group-hover:opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                      }`}
                       aria-label={`Create post on ${formatToWIB(day, "dd MMM yyyy")}`}
                     >
                       <Plus size={14} />

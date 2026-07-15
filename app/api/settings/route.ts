@@ -15,6 +15,15 @@ const schema = z.object({
   tokenExpiresAt: z.string().optional()
 });
 
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await connectDB();
+  const account = await IgAccount.findOne().sort({ updatedAt: -1 }).select("username").lean();
+  return NextResponse.json({ username: account?.username ?? null });
+}
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

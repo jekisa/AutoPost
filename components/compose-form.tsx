@@ -2,8 +2,10 @@
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, CalendarClock, ImagePlus, Send, Trash2, Upload, Video } from "lucide-react";
+import { InstagramPreview, type PreviewMedia } from "@/components/instagram-preview";
 import { useCreatePost } from "@/hooks/usePosts";
 import { formatToWIB } from "@/lib/timezone";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 
 type MediaType = "IMAGE" | "CAROUSEL" | "REELS";
 type PublishMode = "NOW" | "SCHEDULE";
@@ -46,6 +48,7 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
   const [message, setMessage] = useState("");
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [instagramUsername, setInstagramUsername] = useState<string | null>(null);
   const createPost = useCreatePost();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<SelectedMedia[]>([]);
@@ -60,6 +63,19 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
 
   useEffect(() => {
     return () => revokePreviews(mediaRef.current);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/settings")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { username?: string | null } | null) => {
+        if (active) setInstagramUsername(data?.username ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, []);
 
   function resetMedia(nextType: MediaType) {
@@ -264,6 +280,10 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
   }
 
   const accept = mediaType === "REELS" ? "video/mp4,video/quicktime" : "image/jpeg,image/png,image/webp";
+  const previewMedia: PreviewMedia[] = media.map((item) => ({
+    previewUrl: item.previewUrl,
+    type: mediaType === "REELS" ? "VIDEO" : "IMAGE"
+  }));
 
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -430,16 +450,7 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
             </button>
           </div>
           {publishMode === "SCHEDULE" ? (
-            <label className="block space-y-2 text-sm font-medium">
-              Publish date & time (WIB)
-              <input
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-900"
-                required={publishMode === "SCHEDULE"}
-              />
-            </label>
+            <DateTimePicker value={scheduledAt} onChange={setScheduledAt} required />
           ) : null}
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -451,16 +462,9 @@ export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Pr
         </div>
         {message ? <p className="text-sm text-stone-700">{message}</p> : null}
       </div>
-      <aside className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-        <h2 className="font-bold text-slate-950 dark:text-white">{modes.find((mode) => mode.value === mediaType)?.label}</h2>
-        <p className="mt-2">
-          {mediaType === "CAROUSEL"
-            ? "Urutan preview di sini menjadi urutan publish carousel di Instagram."
-            : mediaType === "REELS"
-              ? "Video diupload ke Blob, lalu container Reels dipolling sampai Meta selesai memprosesnya."
-              : "Single image tetap memakai alur create container lalu publish."}
-        </p>
-      </aside>
+      <div className="order-first lg:order-last">
+        <InstagramPreview media={previewMedia} caption={caption} mediaType={mediaType} username={instagramUsername} />
+      </div>
     </form>
   );
 }
