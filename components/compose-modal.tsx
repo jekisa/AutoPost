@@ -147,14 +147,24 @@ export function ComposeModal({ open, mode, scheduledAt, post, onClose, onSuccess
                   </dl>
                   <div className="mt-6 flex flex-col gap-2">
                     {post.status === "FAILED" ? (
-                      <button
-                        type="button"
-                        onClick={() => retryPost.mutate(post.id, { onSuccess })}
-                        disabled={retryPost.isPending}
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-600 px-4 py-3 text-sm font-black text-white transition-colors hover:bg-rose-700 disabled:opacity-60"
-                      >
-                        <RefreshCcw size={16} /> Retry
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            retryPost.reset();
+                            retryPost.mutate(post.id, { onSuccess });
+                          }}
+                          disabled={retryPost.isPending}
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-600 px-4 py-3 text-sm font-black text-white transition-colors hover:bg-rose-700 disabled:opacity-60"
+                        >
+                          <RefreshCcw size={16} /> {retryPost.isPending ? "Retrying..." : "Retry"}
+                        </button>
+                        {retryPost.error ? (
+                          <p className="rounded-2xl bg-rose-50 p-3 text-xs leading-5 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200">
+                            {retryPost.error instanceof Error ? retryPost.error.message : "Retry gagal. Periksa koneksi Meta dan access token di Settings."}
+                          </p>
+                        ) : null}
+                      </>
                     ) : null}
                     {post.status === "DRAFT" || post.status === "SCHEDULED" ? (
                       <div className="rounded-2xl bg-sky-50 p-3 text-sm text-sky-800 dark:bg-sky-950 dark:text-sky-200">
