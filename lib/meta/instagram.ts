@@ -14,6 +14,14 @@ export type MetaAccountInfo = {
   id: string;
   username?: string;
   name?: string;
+  followers_count?: number;
+};
+
+export type MediaComment = {
+  id: string;
+  text?: string;
+  username?: string;
+  timestamp?: string;
 };
 
 export type ContainerStatus = {
@@ -165,9 +173,17 @@ export async function waitForContainerFinished(
 
 export async function getAccountInfo(igUserId: string, accessToken: string) {
   return graphRequest<MetaAccountInfo>(
-    `/${igUserId}?fields=${encodeURIComponent("id,username,name")}`,
+    `/${igUserId}?fields=${encodeURIComponent("id,username,name,followers_count")}`,
     accessToken
   );
+}
+
+export async function getMediaComments(mediaId: string, accessToken: string) {
+  const response = await graphRequest<{ data: MediaComment[] }>(
+    `/${mediaId}/comments?fields=${encodeURIComponent("id,text,username,timestamp")}`,
+    accessToken
+  );
+  return response.data ?? [];
 }
 
 function getInsightMetricNames(mediaType: "IMAGE" | "CAROUSEL" | "REELS") {

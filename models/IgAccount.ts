@@ -9,7 +9,8 @@ const igAccountSchema = new Schema(
     pageId: { type: String, required: true },
     username: { type: String, default: null },
     accessToken: { type: String, required: true },
-    tokenExpiresAt: { type: Date, default: null }
+    tokenExpiresAt: { type: Date, default: null },
+    lastCommentsSeenAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

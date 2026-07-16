@@ -8,8 +8,9 @@ import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
-  { href: "/", label: "Dashboard" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/compose", label: "Compose" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/settings", label: "Settings" }
 ];
 

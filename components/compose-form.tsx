@@ -32,6 +32,8 @@ const MAX_IMAGE_ASPECT_RATIO = 1.91;
 
 type Props = {
   defaultScheduledAt?: string;
+  defaultCaption?: string;
+  defaultMediaType?: MediaType;
   onSuccess?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 };
@@ -40,9 +42,9 @@ function revokePreviews(items: SelectedMedia[]) {
   items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
 }
 
-export function ComposeForm({ defaultScheduledAt, onSuccess, onDirtyChange }: Props = {}) {
-  const [mediaType, setMediaType] = useState<MediaType>("IMAGE");
-  const [caption, setCaption] = useState("");
+export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMediaType = "IMAGE", onSuccess, onDirtyChange }: Props = {}) {
+  const [mediaType, setMediaType] = useState<MediaType>(defaultMediaType);
+  const [caption, setCaption] = useState(defaultCaption);
   const [publishMode, setPublishMode] = useState<PublishMode>(defaultScheduledAt ? "SCHEDULE" : "NOW");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledAt ?? "");
   const [message, setMessage] = useState("");

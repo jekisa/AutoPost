@@ -68,7 +68,7 @@ function postDateKey(post: PostListItem) {
 function MiniPost({ post, onClick }: { post: PostListItem; onClick: () => void }) {
   const first = post.mediaAssets[0];
   return (
-    <button type="button" onClick={onClick} className={`relative h-10 w-10 overflow-hidden rounded-xl border-2 bg-slate-100 shadow-sm transition-transform hover:scale-105 ${statusBorder[post.status]}`}>
+    <button type="button" onClick={onClick} className={`relative h-10 w-10 overflow-hidden rounded-xl border-2 bg-slate-100 shadow-sm transition-transform hover:scale-105 sm:h-11 sm:w-11 xl:h-12 xl:w-12 ${statusBorder[post.status]}`}>
       {first ? (
         first.type === "VIDEO" ? (
           <video src={first.url} className="h-full w-full object-cover" muted />
@@ -239,21 +239,26 @@ export function ComposeCalendar() {
                 return (
                   <div
                     key={key}
-                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors dark:border-slate-800 sm:min-h-36 sm:p-2 ${cellBackground}`}
+                    className={`group relative min-h-24 border-b border-r border-slate-100 p-1.5 transition-colors dark:border-slate-800 sm:min-h-36 sm:p-2 xl:min-h-40 ${cellBackground}`}
                   >
                     <button
                       type="button"
                       onClick={() => setSelectedMobileDay(day)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-black sm:pointer-events-none ${
+                      className={`relative flex h-7 w-7 items-center justify-center rounded-full text-sm font-black sm:pointer-events-none ${
                         isToday ? "bg-gradient-to-r from-[#F97362] to-[#7C3AED] text-white" : "text-slate-700 dark:text-slate-200"
                       }`}
                     >
                       {day.getDate()}
+                      {posts.length ? (
+                        <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-700 px-1 text-[9px] font-black leading-none text-white shadow-sm dark:bg-slate-200 dark:text-slate-900">
+                          {posts.length}
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
                       onClick={() => openCreate(day)}
-                      className={`absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-white transition-opacity dark:bg-white dark:text-slate-950 ${
+                      className={`absolute bottom-1.5 right-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-white transition-opacity dark:bg-white dark:text-slate-950 sm:bottom-auto sm:right-1.5 sm:top-1.5 sm:h-7 sm:w-7 ${
                         isEmpty ? "opacity-30 sm:opacity-25 sm:group-hover:opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                       }`}
                       aria-label={`Create post on ${formatToWIB(day, "dd MMM yyyy")}`}
@@ -270,7 +275,7 @@ export function ComposeCalendar() {
                         </button>
                       ) : null}
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1 sm:hidden">
+                    <div className="mt-2 flex flex-wrap gap-1 sm:hidden" aria-label={`${posts.length} post pada tanggal ini`}>
                       {posts.slice(0, 5).map((post) => (
                         <span key={post.id} className={`h-2 w-2 rounded-full ${statusDot[post.status]}`} />
                       ))}

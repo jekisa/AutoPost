@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <div className="min-h-screen">
             <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-slate-50/85 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+              <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
                 <Link href="/" className="group flex items-center rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950" aria-label="AutoPost dashboard">
                   <Image
                     src="/logo.svg"
@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <AppNav signedIn={Boolean(session)} userEmail={session?.user?.email ?? null} />
               </div>
             </header>
-            <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+            <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8">{children}</main>
           </div>
         </Providers>
       </body>

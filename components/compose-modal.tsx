@@ -11,6 +11,8 @@ type Props = {
   open: boolean;
   mode: "create" | "view";
   scheduledAt?: string;
+  defaultCaption?: string;
+  defaultMediaType?: "IMAGE" | "CAROUSEL" | "REELS";
   post?: PostListItem | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -24,7 +26,7 @@ const statusColor = {
   FAILED: "bg-rose-100 text-rose-800"
 };
 
-export function ComposeModal({ open, mode, scheduledAt, post, onClose, onSuccess }: Props) {
+export function ComposeModal({ open, mode, scheduledAt, defaultCaption, defaultMediaType, post, onClose, onSuccess }: Props) {
   const [dirty, setDirty] = useState(false);
   const retryPost = useRetryPost();
 
@@ -82,8 +84,10 @@ export function ComposeModal({ open, mode, scheduledAt, post, onClose, onSuccess
           <div className="p-4 sm:p-6">
             {mode === "create" ? (
               <ComposeForm
-                key={scheduledAt ?? "create"}
+                key={`${scheduledAt ?? "create"}-${defaultCaption ?? ""}-${defaultMediaType ?? ""}`}
                 defaultScheduledAt={scheduledAt}
+                defaultCaption={defaultCaption}
+                defaultMediaType={defaultMediaType}
                 onDirtyChange={setDirty}
                 onSuccess={() => {
                   setDirty(false);

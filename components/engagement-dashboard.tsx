@@ -34,13 +34,13 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
   return <div className={`shimmer rounded-2xl bg-slate-200 dark:bg-slate-800 ${className}`} />;
 }
 
-function Thumbnail({ post }: { post: EngagementPost }) {
+function Thumbnail({ post, className = "h-12 w-12" }: { post: EngagementPost; className?: string }) {
   if (!post.thumbnailUrl) {
-    return <div className="h-12 w-12 rounded-xl bg-slate-100 dark:bg-slate-800" />;
+    return <div className={`${className} rounded-xl bg-slate-100 dark:bg-slate-800`} />;
   }
 
   return (
-    <div className="relative h-12 w-12 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+    <div className={`relative ${className} overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700`}>
       {post.mediaType === "REELS" ? (
         <video src={post.thumbnailUrl} className="h-full w-full object-cover" muted />
       ) : (
@@ -77,22 +77,24 @@ export function EngagementDashboard() {
     { label: "Avg. Engagement", value: percent.format(summary.averageEngagementRate), icon: TrendingUp, color: "text-teal-600" }
   ];
 
-  const chartData = useMemo(
-    () =>
-      posts
-        .filter((post) => !post.error)
-        .slice()
-        .sort((a, b) => new Date(a.publishedAt ?? 0).getTime() - new Date(b.publishedAt ?? 0).getTime())
-        .map((post, index) => ({
-          name: post.publishedAt ? getWIBDateKey(post.publishedAt) : `Post ${index + 1}`,
-          engagement: post.metrics.engagement,
-          likes: post.metrics.likes,
-          comments: post.metrics.comments,
-          saves: post.metrics.saves,
-          caption: post.caption.slice(0, 42)
-        })),
-    [posts]
-  );
+  const chartData = useMemo(() => {
+    const byDate = new Map<string, { name: string; engagement: number; likes: number; comments: number; saves: number; postCount: number }>();
+
+    posts
+      .filter((post) => !post.error && post.publishedAt)
+      .forEach((post) => {
+        const name = getWIBDateKey(post.publishedAt as string);
+        const current = byDate.get(name) ?? { name, engagement: 0, likes: 0, comments: 0, saves: 0, postCount: 0 };
+        current.engagement += post.metrics.engagement;
+        current.likes += post.metrics.likes;
+        current.comments += post.metrics.comments;
+        current.saves += post.metrics.saves;
+        current.postCount += 1;
+        byDate.set(name, current);
+      });
+
+    return [...byDate.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [posts]);
 
   const columns = useMemo<ColumnDef<EngagementPost>[]>(
     () => [
@@ -204,14 +206,14 @@ export function EngagementDashboard() {
         </div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {summaryCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-500">{card.label}</p>
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-500 sm:text-xs">{card.label}</p>
               <card.icon size={18} className={card.color} />
             </div>
-            <p className="mt-4 text-3xl font-black text-slate-950 dark:text-white">{card.value}</p>
+            <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white sm:mt-4 sm:text-3xl">{card.value}</p>
           </div>
         ))}
       </section>
@@ -224,7 +226,7 @@ export function EngagementDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={(value) => compact.format(Number(value))} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value, name) => [compact.format(Number(value)), name]} labelFormatter={(_, payload) => payload?.[0]?.payload?.caption ?? ""} />
+              <Tooltip formatter={(value, name) => [compact.format(Number(value)), name]} labelFormatter={(_, payload) => payload?.[0]?.payload?.postCount ? `${payload[0].payload.postCount} post pada tanggal ini` : ""} />
               <Bar dataKey="engagement" fill="#7C3AED" radius={[10, 10, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -233,20 +235,22 @@ export function EngagementDashboard() {
 
       <section>
         <h2 className="text-lg font-black text-slate-950 dark:text-white">Top Performing Posts</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-visible xl:grid-cols-5">
           {(query.data?.topPosts ?? []).map((post) => (
-            <article key={post.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-              <Thumbnail post={post} />
-              <p className="mt-3 line-clamp-3 text-sm font-bold text-slate-900 dark:text-slate-100">{post.caption}</p>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="rounded-2xl bg-rose-50 p-2 text-rose-700 dark:bg-rose-950 dark:text-rose-200">
-                  <strong className="block text-base">{compact.format(post.metrics.likes)}</strong> Likes
-                </div>
-                <div className="rounded-2xl bg-sky-50 p-2 text-sky-700 dark:bg-sky-950 dark:text-sky-200">
-                  <strong className="block text-base">{compact.format(post.metrics.comments)}</strong> Com.
-                </div>
-                <div className="rounded-2xl bg-violet-50 p-2 text-violet-700 dark:bg-violet-950 dark:text-violet-200">
-                  <strong className="block text-base">{percent.format(post.metrics.engagementRate)}</strong> ER
+            <article key={post.id} className="flex min-w-[82%] snap-start items-center gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:block md:min-w-0 md:p-4">
+              <Thumbnail post={post} className="h-14 w-14 shrink-0 md:h-12 md:w-12" />
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 text-sm font-bold text-slate-900 dark:text-slate-100 md:mt-3 md:line-clamp-3">{post.caption}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[11px] md:mt-4 md:grid-cols-3 md:text-xs">
+                  <div className="rounded-xl bg-rose-50 p-1.5 text-rose-700 dark:bg-rose-950 dark:text-rose-200 md:rounded-2xl md:p-2">
+                    <strong className="block text-sm md:text-base">{compact.format(post.metrics.likes)}</strong> Likes
+                  </div>
+                  <div className="rounded-xl bg-sky-50 p-1.5 text-sky-700 dark:bg-sky-950 dark:text-sky-200 md:rounded-2xl md:p-2">
+                    <strong className="block text-sm md:text-base">{compact.format(post.metrics.comments)}</strong> Com.
+                  </div>
+                  <div className="hidden rounded-xl bg-violet-50 p-1.5 text-violet-700 dark:bg-violet-950 dark:text-violet-200 md:block md:rounded-2xl md:p-2">
+                    <strong className="block text-base">{percent.format(post.metrics.engagementRate)}</strong> ER
+                  </div>
                 </div>
               </div>
             </article>
