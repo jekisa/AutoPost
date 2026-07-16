@@ -8,6 +8,7 @@ export type DashboardOverviewResponse = {
   greeting: { name: string; label?: string };
   today: string;
   summary: { streak: number; currentWeekPosts: number; target: number | null; progressStatus: string; commentAverage: number; commentScore: string };
+  history: Array<{ posts: number; commentAverage: number }>;
   weeklyPulse: { posts: number; postsChange: number | null; followers: number | null; comments: number; previousComments: number };
   upcoming: OverviewPost[];
   comments: { items: OverviewComment[]; unreadCount: number };

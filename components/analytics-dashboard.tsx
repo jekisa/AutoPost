@@ -1,10 +1,11 @@
 "use client";
 
 import { jsPDF } from "jspdf";
-import { ArrowDown, ArrowUp, BarChart3, Bookmark, CalendarDays, Eye, FileDown, Heart, MessageCircle, MessageSquare, RefreshCw, Users, X } from "lucide-react";
+import { BarChart3, Bookmark, CalendarDays, Eye, FileDown, Heart, Info, MessageCircle, MessageSquare, RefreshCw, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ComposeModal } from "@/components/compose-modal";
+import { TrendBadge } from "@/components/ui/trend-badge";
 import { type AnalyticsPost, useAnalytics, type AnalyticsResponse } from "@/hooks/useAnalytics";
 import { formatToWIB } from "@/lib/timezone";
 
@@ -17,9 +18,7 @@ const ranges: Array<{ value: AnalyticsResponse["range"]; label: string }> = [
 ];
 
 function Trend({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-xs font-bold text-slate-400">N/A</span>;
-  const positive = value >= 0;
-  return <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${positive ? "text-emerald-600" : "text-rose-600"}`}>{positive ? <ArrowUp size={12} /> : <ArrowDown size={12} />}{Math.abs(value).toFixed(1)}%</span>;
+  return <TrendBadge value={value} />;
 }
 
 function PostThumbnail({ post }: { post: AnalyticsPost }) {
@@ -45,11 +44,11 @@ async function imageToDataUrl(url: string) {
   });
 }
 
-function SummaryCard({ label, value, change, icon: Icon, note }: { label: string; value: string; change: number | null; icon: typeof Heart; note?: string }) {
+function SummaryCard({ label, value, change, icon: Icon, note, showTrend = true }: { label: string; value: string; change: number | null; icon: typeof Heart; note?: string; showTrend?: boolean }) {
   return <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-4">
     <div className="flex items-start justify-between gap-2"><p className="text-[10px] font-black uppercase tracking-wide text-slate-500 sm:text-xs">{label}</p><Icon size={17} className="shrink-0 text-violet-600" /></div>
     <p className="mt-3 text-2xl font-black text-slate-950 dark:text-white sm:text-3xl">{value}</p>
-    <div className="mt-2 flex min-h-4 items-center justify-between"><Trend value={change} />{note ? <span className="text-[10px] font-semibold text-slate-400">{note}</span> : null}</div>
+    <div className="mt-2 flex min-h-4 items-center justify-between">{showTrend ? <Trend value={change} /> : <span />}{note ? <span className="text-[10px] font-semibold text-slate-400">{note}</span> : null}</div>
   </div>;
 }
 
@@ -60,9 +59,10 @@ export function AnalyticsDashboard() {
   const [commentsPost, setCommentsPost] = useState<AnalyticsPost | null>(null);
   const [duplicatePost, setDuplicatePost] = useState<AnalyticsPost | null>(null);
   const [exporting, setExporting] = useState(false);
-  const query = useAnalytics(range);
+  const [comparisonBannerDismissed, setComparisonBannerDismissed] = useState(false);
+  const query = useAnalytics(range, sortBy);
   const data = query.data;
-  const posts = useMemo(() => [...(data?.topPosts ?? [])].sort((a, b) => sortBy === "reactions" ? b.metrics.likes - a.metrics.likes : b.metrics.comments - a.metrics.comments), [data?.topPosts, sortBy]);
+  const posts = useMemo(() => data?.topPosts ?? [], [data?.topPosts]);
   const summary = data?.summary;
 
   async function showComments(post: AnalyticsPost) {
@@ -105,16 +105,17 @@ export function AnalyticsDashboard() {
   return <div className="space-y-6">
     <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div><p className="text-xs font-black uppercase tracking-[0.2em] text-[#F97362]">Performance Intelligence</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl dark:text-white">Analytics</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">Insight performa akun Instagram berdasarkan konten yang dipublish.</p></div>
-      <div className="flex flex-wrap items-center gap-2"><div className="flex rounded-full border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">{ranges.map((item) => <button key={item.value} type="button" onClick={() => setRange(item.value)} className={`rounded-full px-3 py-2 text-xs font-bold transition ${range === item.value ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>{item.label}</button>)}</div><button type="button" onClick={exportReport} disabled={exporting || !data} className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-xs font-black text-white disabled:opacity-60"><FileDown size={15} /> {exporting ? "Exporting..." : "Export Report"}</button></div>
+      <div className="flex w-full min-w-0 items-center gap-2 lg:w-auto"><div className="scrollbar-hide flex min-w-0 flex-1 snap-x snap-mandatory gap-1 overflow-x-auto rounded-full border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900 md:flex-none">{ranges.map((item) => <button key={item.value} type="button" onClick={() => setRange(item.value)} className={`min-h-10 shrink-0 snap-start rounded-full px-2.5 py-2 text-xs font-bold transition md:px-3 ${range === item.value ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>{item.label}</button>)}</div><button type="button" onClick={exportReport} disabled={exporting || !data} aria-label="Export Report" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] text-xs font-black text-white transition hover:shadow-md disabled:opacity-60 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-4 md:py-3"><FileDown size={16} /><span className="hidden md:inline">{exporting ? "Exporting..." : "Export Report"}</span></button></div>
     </section>
     {data?.warnings.length ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">{data.warnings.join(" ")}</div> : null}
+    {data?.noComparisonDataAvailable && !comparisonBannerDismissed ? <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100"><Info className="mt-0.5 shrink-0 text-sky-600 dark:text-sky-300" size={18} /><p className="flex-1">Akun ini masih baru - perbandingan periode sebelumnya akan tersedia setelah ada cukup histori data.</p><button type="button" onClick={() => setComparisonBannerDismissed(true)} aria-label="Tutup informasi" className="rounded-full p-1 text-sky-600 transition hover:bg-sky-100 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-900"><X size={16} /></button></div> : null}
     <section className="grid grid-cols-2 gap-3 xl:grid-cols-6">
-      <SummaryCard label="Posts" value={compact.format(summary?.posts.value ?? 0)} change={summary?.posts.change ?? null} icon={CalendarDays} />
-      <SummaryCard label="Total Followers" value={summary?.followers.value === null ? "-" : compact.format(summary?.followers.value ?? 0)} change={null} icon={Users} note="Live count" />
-      <SummaryCard label="Reactions" value={compact.format(summary?.reactions.value ?? 0)} change={summary?.reactions.change ?? null} icon={Heart} />
-      <SummaryCard label="Comments" value={compact.format(summary?.comments.value ?? 0)} change={summary?.comments.change ?? null} icon={MessageCircle} />
-      <SummaryCard label="Engagement Rate" value={percent.format(summary?.engagementRate.value ?? 0)} change={summary?.engagementRate.change ?? null} icon={BarChart3} />
-      <SummaryCard label="Views" value={compact.format(summary?.views.value ?? 0)} change={summary?.views.change ?? null} icon={Eye} note={data?.posts.some((post) => post.mediaType === "REELS") ? undefined : "Tidak ada Reels"} />
+      <SummaryCard label="Posts" value={compact.format(summary?.posts.value ?? 0)} change={summary?.posts.change ?? null} icon={CalendarDays} showTrend={!data?.noComparisonDataAvailable} />
+      <SummaryCard label="Total Followers" value={summary?.followers.value === null ? "-" : compact.format(summary?.followers.value ?? 0)} change={null} icon={Users} note="Live count" showTrend={!data?.noComparisonDataAvailable} />
+      <SummaryCard label="Reactions" value={compact.format(summary?.reactions.value ?? 0)} change={summary?.reactions.change ?? null} icon={Heart} showTrend={!data?.noComparisonDataAvailable} />
+      <SummaryCard label="Comments" value={compact.format(summary?.comments.value ?? 0)} change={summary?.comments.change ?? null} icon={MessageCircle} showTrend={!data?.noComparisonDataAvailable} />
+      <SummaryCard label="Engagement Rate" value={percent.format(summary?.engagementRate.value ?? 0)} change={summary?.engagementRate.change ?? null} icon={BarChart3} showTrend={!data?.noComparisonDataAvailable} />
+      <SummaryCard label="Views" value={compact.format(summary?.views.value ?? 0)} change={summary?.views.change ?? null} icon={Eye} note={data?.posts.some((post) => post.mediaType === "REELS") ? undefined : "Tidak ada Reels"} showTrend={!data?.noComparisonDataAvailable} />
     </section>
     <section className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-black text-slate-950 dark:text-white">Posts Analytics</h2><p className="mt-1 text-xs text-slate-500">Jumlah post publish per hari WIB</p></div><div className="flex rounded-full border border-slate-200 p-1 dark:border-slate-700"><button type="button" onClick={() => setChartMode("bar")} className={`rounded-full px-3 py-1.5 text-xs font-bold ${chartMode === "bar" ? "bg-violet-600 text-white" : "text-slate-500"}`}>Bar</button><button type="button" onClick={() => setChartMode("stacked")} className={`rounded-full px-3 py-1.5 text-xs font-bold ${chartMode === "stacked" ? "bg-violet-600 text-white" : "text-slate-500"}`}>Stacked</button></div></div><div className="mt-4 h-80"><ResponsiveContainer width="100%" height="100%"><BarChart data={data?.postsByDay ?? []}><CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" /><XAxis dataKey="date" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><Tooltip /><Legend /><Bar dataKey={chartMode === "bar" ? "total" : "image"} name={chartMode === "bar" ? "Total Posts" : "Single Image"} stackId={chartMode === "stacked" ? "content" : undefined} fill="#7C3AED" radius={[6, 6, 0, 0]} />{chartMode === "stacked" ? <><Bar dataKey="carousel" name="Carousel" stackId="content" fill="#F97362" /><Bar dataKey="reels" name="Reels" stackId="content" fill="#14B8A6" /></> : null}</BarChart></ResponsiveContainer></div></div>

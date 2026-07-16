@@ -44,6 +44,15 @@ select {
   overflow: hidden;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .shimmer::after {
   animation: shimmer 1.6s infinite;
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
@@ -51,4 +60,87 @@ select {
   inset: 0;
   position: absolute;
   transform: translateX(-100%);
+}
+
+/* Dashboard overview interaction polish. */
+.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(1) {
+  background: linear-gradient(135deg, rgb(249 115 98 / 0.04), #ffffff);
+  border-color: rgb(249 115 98 / 0.2);
+  transition: all 200ms ease;
+}
+
+.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(2) {
+  background: linear-gradient(135deg, rgb(124 58 237 / 0.04), #ffffff);
+  border-color: rgb(124 58 237 / 0.2);
+  transition: all 200ms ease;
+}
+
+.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(3) {
+  background: linear-gradient(135deg, rgb(14 165 233 / 0.04), #ffffff);
+  border-color: rgb(14 165 233 / 0.2);
+  transition: all 200ms ease;
+}
+
+.dashboard-overview > section[class~="md:grid-cols-3"] > :is(div, button):hover {
+  transform: translateY(-0.25rem);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.08);
+}
+
+.dashboard-overview > section[class~="md:grid-cols-3"] > button[class*="hover:border-violet-300"]:focus-visible,
+.dashboard-overview button[class*="hover:-translate-y-0.5"]:focus-visible {
+  outline: 3px solid rgb(124 58 237 / 0.28);
+  outline-offset: 2px;
+}
+
+.dashboard-overview button[class*="hover:-translate-y-0.5"] {
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.dashboard-overview button[class*="hover:-translate-y-0.5"] svg {
+  transition: transform 200ms ease, color 200ms ease;
+}
+
+.dashboard-overview button[class*="hover:-translate-y-0.5"]:hover svg {
+  color: #7c3aed;
+  transform: scale(1.1);
+}
+
+.dashboard-overview button[class*="hover:bg-slate-50"] {
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.dashboard-overview button[class*="hover:bg-slate-50"]:hover {
+  box-shadow: 0 6px 16px rgb(15 23 42 / 0.06);
+  transform: translateY(-0.125rem);
+}
+
+.dashboard-overview button[class*="hover:bg-slate-50"]:focus-visible {
+  outline: 3px solid rgb(124 58 237 / 0.28);
+  outline-offset: 2px;
+}
+
+.dashboard-overview button[class*="text-violet-600"],
+.dashboard-overview a[class*="text-violet-600"] {
+  transition: color 200ms ease, text-decoration-color 200ms ease;
+}
+
+.dashboard-overview button[class*="text-violet-600"]:hover,
+.dashboard-overview a[class*="text-violet-600"]:hover {
+  color: #5b21b6;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(1) {
+  background: linear-gradient(135deg, rgb(249 115 98 / 0.08), #0f172a);
+}
+
+.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(2) {
+  background: linear-gradient(135deg, rgb(124 58 237 / 0.1), #0f172a);
+}
+
+.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(3) {
+  background: linear-gradient(135deg, rgb(14 165 233 / 0.08), #0f172a);
 }

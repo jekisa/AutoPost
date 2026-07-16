@@ -105,7 +105,7 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
       </button>
 
       {open ? (
-        <div role="dialog" aria-label="Pilih tanggal dan waktu publish" className="fixed inset-x-3 bottom-3 z-50 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-[calc(100%+0.5rem)] sm:w-[22rem] dark:border-slate-700 dark:bg-slate-900">
+        <div role="dialog" aria-label="Pilih tanggal dan waktu publish" className="fixed inset-x-3 bottom-3 z-50 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-[calc(100%+0.5rem)] sm:top-auto sm:w-[22rem] dark:border-slate-700 dark:bg-slate-900">
           <DayPicker
             mode="single"
             month={month}

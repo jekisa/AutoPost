@@ -90,6 +90,13 @@ export async function GET() {
   const previousAverage = previousFour.length ? previousFour.reduce((sum, post) => sum + (commentCounts.get(post._id.toString()) ?? 0), 0) / previousFour.length : 0;
   const commentChange = previousAverage > 0 ? ((recentAverage - previousAverage) / previousAverage) * 100 : 0;
   const commentScore = !recentFour.length || !previousFour.length ? "Not enough data yet" : commentChange > 20 ? "Trending up" : commentChange < -20 ? "Needs attention" : recentAverage >= previousAverage ? "Nice and consistent" : "Steady";
+  const history = Array.from({ length: 8 }, (_, index) => {
+    const start = subDays(currentWeek, (7 - index) * 7);
+    const end = addDays(start, 7);
+    const weekPosts = published.filter((post) => post.publishedAt && post.publishedAt >= start && post.publishedAt < end);
+    const comments = weekPosts.reduce((sum, post) => sum + (commentCounts.get(post._id.toString()) ?? 0), 0);
+    return { posts: weekPosts.length, commentAverage: weekPosts.length ? comments / weekPosts.length : 0 };
+  });
   const target = goal?.targetPostsPerWeek ?? null;
   const progress = target ? currentWeekPosts.length / target : 0;
   const weekProgressStatus = !currentWeekPosts.length ? "Let's get started" : target && progress >= 1 ? "Well ahead of schedule" : target && progress >= 0.7 ? "On track" : "Catching up";
@@ -98,6 +105,7 @@ export async function GET() {
     greeting: { name: process.env.ADMIN_NAME || (process.env.ADMIN_EMAIL ?? "Admin").split("@")[0].split(/[._-]/).map((part) => part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : "").join(" ") },
     today: now.toISOString(),
     summary: { streak, currentWeekPosts: currentWeekPosts.length, target, progressStatus: weekProgressStatus, commentAverage: recentAverage, commentScore },
+    history,
     weeklyPulse: { posts: currentWeekPosts.length, postsChange: percentage(currentWeekPosts.length, previousWeekPosts.length), followers, comments: currentComments, previousComments },
     upcoming: scheduled.map((post) => ({ id: post._id.toString(), caption: post.caption, mediaType: post.mediaType, scheduledAt: post.scheduledAt?.toISOString() ?? null, publishedAt: post.publishedAt?.toISOString() ?? null, status: post.status, igMediaId: post.igMediaId, instagramPermalink: post.instagramPermalink, errorMessage: post.errorMessage, createdAt: post.createdAt.toISOString(), updatedAt: post.updatedAt.toISOString(), mediaAssets: post.mediaAssets.map((asset) => ({ id: asset._id.toString(), url: asset.url, order: asset.order, type: asset.type })) })),
     comments: { items: recentComments.slice(0, 30).map((comment) => ({ ...comment, unread: new Date(comment.timestamp).getTime() > seenAt })), unreadCount: recentComments.filter((comment) => new Date(comment.timestamp).getTime() > seenAt).length },

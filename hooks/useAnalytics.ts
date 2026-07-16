@@ -14,6 +14,7 @@ export type AnalyticsPost = {
 
 export type AnalyticsResponse = {
   range: "7d" | "30d" | "mtd";
+  noComparisonDataAvailable: boolean;
   period: { start: string; end: string; days: number };
   followers: number | null;
   summary: Record<"posts" | "followers" | "reactions" | "comments" | "engagementRate" | "views", { value: number | null; change: number | null }>;
@@ -23,11 +24,11 @@ export type AnalyticsResponse = {
   warnings: string[];
 };
 
-export function useAnalytics(range: AnalyticsResponse["range"]) {
+export function useAnalytics(range: AnalyticsResponse["range"], sortBy: "reactions" | "comments") {
   return useQuery({
-    queryKey: ["analytics", range],
+    queryKey: ["analytics", range, sortBy],
     queryFn: async () => {
-      const response = await fetch(`/api/analytics?range=${range}`);
+      const response = await fetch(`/api/analytics?range=${range}&sortBy=${sortBy}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Gagal memuat analytics.");
       return data as AnalyticsResponse;

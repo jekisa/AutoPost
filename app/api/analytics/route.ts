@@ -81,7 +81,9 @@ export async function GET(request: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const requestedRange = new URL(request.url).searchParams.get("range");
+  const requestedSort = new URL(request.url).searchParams.get("sortBy");
   const range: RangeKey = requestedRange === "30d" || requestedRange === "mtd" ? requestedRange : "7d";
+  const sortBy = requestedSort === "comments" ? "comments" : "reactions";
   const period = getRange(range);
 
   await connectDB();
@@ -134,6 +136,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     range,
+    noComparisonDataAvailable: previous.length === 0,
     period: { start: period.start.toISOString(), end: period.end.toISOString(), days: period.days },
     followers,
     summary: {
@@ -144,7 +147,7 @@ export async function GET(request: Request) {
       engagementRate: { value: currentTotals.averageRate, change: trend(currentTotals.averageRate, previousTotals.averageRate, previous.length) },
       views: { value: currentTotals.plays, change: trend(currentTotals.plays, previousTotals.plays, previous.length) }
     },
-    topPosts: [...current].sort((a, b) => b.metrics.engagement - a.metrics.engagement).slice(0, 5),
+    topPosts: [...current].sort((a, b) => sortBy === "comments" ? b.metrics.comments - a.metrics.comments : b.metrics.likes - a.metrics.likes).slice(0, 5),
     posts: current,
     postsByDay: [...chartMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
     warnings: [...new Set(warnings)].slice(0, 8)
