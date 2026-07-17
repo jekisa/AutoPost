@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ComposeModal } from "@/components/compose-modal";
 import { TrendBadge } from "@/components/ui/trend-badge";
+import { AppModal } from "@/components/ui/app-modal";
 import { type AnalyticsPost, useAnalytics, type AnalyticsResponse } from "@/hooks/useAnalytics";
 import { formatToWIB } from "@/lib/timezone";
 
@@ -132,5 +133,5 @@ function CommentsPanel({ post, onClose }: { post: AnalyticsPost; onClose: () => 
   const [comments, setComments] = useState<Array<{ id: string; text?: string; username?: string }>>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { let active = true; fetch(`/api/analytics/comments?mediaId=${post.igMediaId}`).then((response) => response.json()).then((data) => { if (active) setComments(data.comments ?? []); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [post.igMediaId]);
-  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"><div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><h2 className="font-black text-slate-950 dark:text-white">Comments</h2><button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button></div><div className="mt-4 max-h-80 space-y-3 overflow-y-auto">{loading ? <p className="text-sm text-slate-500">Memuat komentar...</p> : comments.length ? comments.map((comment) => <div key={comment.id} className="rounded-2xl bg-slate-100 p-3 text-sm dark:bg-slate-800"><strong>{comment.username ?? "User"}</strong><p className="mt-1 text-slate-600 dark:text-slate-300">{comment.text ?? ""}</p></div>) : <p className="text-sm text-slate-500">Belum ada komentar atau komentar tidak tersedia.</p>}</div></div></div>;
+  return <AppModal open onClose={onClose} eyebrow="Post analytics" title="Comments" description={`Komentar untuk ${post.caption.slice(0, 60) || "post ini"}`} className="max-w-lg"><div className="space-y-3">{loading ? <p className="text-sm text-slate-500">Memuat komentar...</p> : comments.length ? comments.map((comment) => <div key={comment.id} className="rounded-2xl bg-slate-100 p-3 text-sm dark:bg-slate-800"><strong>{comment.username ?? "User"}</strong><p className="mt-1 text-slate-600 dark:text-slate-300">{comment.text ?? ""}</p></div>) : <p className="text-sm text-slate-500">Belum ada komentar atau komentar tidak tersedia.</p>}</div></AppModal>;
 }

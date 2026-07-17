@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, X } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, Menu, PenLine, Settings, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AppModal } from "@/components/ui/app-modal";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/compose", label: "Compose" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/settings", label: "Settings" }
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/compose", label: "Compose", icon: PenLine },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings }
 ];
 
 export function AppNav({ signedIn, userEmail }: { signedIn: boolean; userEmail?: string | null }) {
@@ -31,43 +33,48 @@ export function AppNav({ signedIn, userEmail }: { signedIn: boolean; userEmail?:
 
   return (
     <div className="flex items-center gap-2">
-      <nav className="hidden items-center gap-1 rounded-full border border-slate-200 bg-white/80 p-1 text-sm shadow-sm backdrop-blur md:flex dark:border-slate-800 dark:bg-slate-950/70">
+      <nav className="hidden items-center gap-1 rounded-2xl border border-slate-200 bg-white/85 p-1.5 text-sm shadow-[0_14px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl md:flex dark:border-slate-800 dark:bg-slate-950/80">
         {navItems.map((item) => {
           const active = pathname === item.href;
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-full px-4 py-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+              className={cn(
+                "inline-flex items-center gap-2 rounded-xl px-3.5 py-2 font-bold transition-all focus:outline-none focus:ring-2 focus:ring-teal-500",
                 active
-                  ? "bg-teal-600 text-white shadow-sm"
+                  ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-              }`}
+              )}
             >
+              <Icon size={16} />
               {item.label}
             </Link>
           );
         })}
       </nav>
-      <div className="hidden items-center gap-2 md:flex">
+      <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-white/85 p-1.5 shadow-[0_14px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl md:flex dark:border-slate-800 dark:bg-slate-950/80">
         {userEmail ? (
-          <span className="max-w-48 truncate rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300" title={userEmail}>
+          <span className="max-w-48 truncate rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300" title={userEmail}>
             {userEmail}
           </span>
         ) : null}
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-rose-800 dark:hover:bg-rose-950 dark:hover:text-rose-200"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 dark:text-slate-100 dark:hover:bg-rose-950 dark:hover:text-rose-200"
+          aria-label="Logout"
+          title="Logout"
         >
-          <LogOut size={16} /> Logout
+          <LogOut size={16} />
         </button>
       </div>
       <ThemeToggle />
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 md:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 md:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         aria-label="Toggle navigation"
       >
         {open ? <X size={18} /> : <Menu size={18} />}
@@ -82,17 +89,19 @@ export function AppNav({ signedIn, userEmail }: { signedIn: boolean; userEmail?:
           ) : null}
           {navItems.map((item) => {
             const active = pathname === item.href;
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className={`block rounded-xl px-4 py-3 text-sm font-medium ${
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold ${
                   active
-                    ? "bg-teal-600 text-white"
+                    ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950"
                     : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
                 }`}
               >
+                <Icon size={17} />
                 {item.label}
               </Link>
             );
@@ -110,37 +119,11 @@ export function AppNav({ signedIn, userEmail }: { signedIn: boolean; userEmail?:
         </div>
       ) : null}
       {confirmOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="logout-title">
-          <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+        <AppModal open onClose={() => setConfirmOpen(false)} eyebrow="Account" title="Keluar dari AutoPost?" description={`Apakah kamu yakin ingin keluar${userEmail ? ` dari akun ${userEmail}` : ""}?`} className="max-w-sm" footer={<div className="flex justify-end gap-2"><button type="button" onClick={() => setConfirmOpen(false)} disabled={loggingOut} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-white disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Batal</button><button type="button" onClick={confirmLogout} disabled={loggingOut} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50"><LogOut size={16} /> {loggingOut ? "Keluar..." : "Ya, Keluar"}</button></div>}>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-200">
               <LogOut size={22} />
             </div>
-            <h2 id="logout-title" className="mt-4 text-lg font-black text-slate-950 dark:text-white">
-              Keluar dari AutoPost?
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Apakah kamu yakin ingin keluar{userEmail ? ` dari akun ${userEmail}` : ""}?
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmOpen(false)}
-                disabled={loggingOut}
-                className="rounded-full border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={confirmLogout}
-                disabled={loggingOut}
-                className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50"
-              >
-                <LogOut size={16} /> {loggingOut ? "Keluar..." : "Ya, Keluar"}
-              </button>
-            </div>
-          </div>
-        </div>
+        </AppModal>
       ) : null}
     </div>
   );

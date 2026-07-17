@@ -1,11 +1,12 @@
 "use client";
 
-import { X, ExternalLink, RefreshCcw, Play, CalendarClock, Image as ImageIcon } from "lucide-react";
+import { ExternalLink, RefreshCcw, Play, CalendarClock, Image as ImageIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ComposeForm } from "@/components/compose-form";
 import type { PostListItem } from "@/hooks/usePosts";
 import { useRetryPost } from "@/hooks/usePosts";
 import { formatToWIB } from "@/lib/timezone";
+import { AppModal } from "@/components/ui/app-modal";
 
 type Props = {
   open: boolean;
@@ -52,36 +53,8 @@ export function ComposeModal({ open, mode, scheduledAt, defaultCaption, defaultM
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-md md:p-6"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) requestClose();
-      }}
-    >
-      <div className="flex min-h-full items-stretch justify-center md:items-center">
-        <div className="relative h-dvh w-full overflow-y-auto bg-slate-50 shadow-2xl dark:bg-slate-950 md:h-auto md:max-h-[92vh] md:max-w-5xl md:rounded-[2rem]">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:px-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F97362]">
-                {mode === "create" ? "Create scheduled content" : "Post detail"}
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                {mode === "create" ? "Compose Post" : post?.caption.slice(0, 48) || "Post"}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={requestClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7C3AED] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="p-4 sm:p-6">
+    <AppModal open={open} onClose={requestClose} eyebrow={mode === "create" ? "Create scheduled content" : "Post detail"} title={mode === "create" ? "Compose Post" : post?.caption.slice(0, 48) || "Post"} className="max-w-5xl sm:max-h-[92vh]">
+          <div>
             {mode === "create" ? (
               <ComposeForm
                 key={`${scheduledAt ?? "create"}-${defaultCaption ?? ""}-${defaultMediaType ?? ""}`}
@@ -190,8 +163,6 @@ export function ComposeModal({ open, mode, scheduledAt, defaultCaption, defaultM
               </div>
             ) : null}
           </div>
-        </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }

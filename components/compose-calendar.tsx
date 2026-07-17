@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, MoreHorizontal, Play, Plus } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListFilter, MoreHorizontal, Play, Plus, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -121,17 +121,18 @@ export function ComposeCalendar() {
     searchParams.get("new") === "1" ? { mode: "create", scheduledAt: toLocalInputValue(today) } : null
   );
   const [selectedMobileDay, setSelectedMobileDay] = useState<Date | null>(null);
+  const [statusFilter, setStatusFilter] = useState<PostStatus | "ALL">("ALL");
   const queryClient = useQueryClient();
   const query = useCalendarPosts(month.getFullYear(), month.getMonth());
   const days = useMemo(() => buildDays(month), [month]);
   const postsByDay = useMemo(() => {
     const map = new Map<string, PostListItem[]>();
-    for (const post of query.data ?? []) {
+    for (const post of (query.data ?? []).filter((item) => statusFilter === "ALL" || item.status === statusFilter)) {
       const key = postDateKey(post);
       map.set(key, [...(map.get(key) ?? []), post]);
     }
     return map;
-  }, [query.data]);
+  }, [query.data, statusFilter]);
 
   useEffect(() => {
     if (searchParams.get("new") === "1") {
@@ -152,6 +153,10 @@ export function ComposeCalendar() {
     setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   }
 
+  const allPosts = query.data ?? [];
+  const scheduledCount = allPosts.filter((post) => post.status === "SCHEDULED").length;
+  const publishedCount = allPosts.filter((post) => post.status === "PUBLISHED").length;
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -162,13 +167,15 @@ export function ComposeCalendar() {
             Pilih tanggal, jadwalkan konten, dan pantau thumbnail post dalam tampilan kalender bulanan.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openCreate(today)}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20"
-        >
+        <button type="button" onClick={() => openCreate(today)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-violet-300">
           <Plus size={17} /> New Post
         </button>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950"><Clock3 size={18} /></span><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Scheduled</p><p className="mt-1 text-xl font-black text-slate-950 dark:text-white">{scheduledCount}</p></div></div>
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950"><CheckCircle2 size={18} /></span><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Published</p><p className="mt-1 text-xl font-black text-slate-950 dark:text-white">{publishedCount}</p></div></div>
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-950"><CalendarDays size={18} /></span><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Showing</p><p className="mt-1 text-xl font-black text-slate-950 dark:text-white">{postsByDay.size} days</p></div></div>
       </section>
 
       <section className="rounded-[2rem] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -189,7 +196,13 @@ export function ComposeCalendar() {
             </button>
           </div>
           <h2 className="text-center text-xl font-black capitalize text-slate-950 dark:text-white">{monthFormatter.format(month)}</h2>
-          <div className="hidden w-44 sm:block" />
+          <div className="flex items-center justify-between gap-2 sm:w-52 sm:justify-end">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500"><ListFilter size={14} /> Filter</div>
+            <select aria-label="Filter status post" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as PostStatus | "ALL")} className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-violet-950">
+              <option value="ALL">All status</option><option value="DRAFT">Draft</option><option value="SCHEDULED">Scheduled</option><option value="PUBLISHING">Publishing</option><option value="PUBLISHED">Published</option><option value="FAILED">Failed</option>
+            </select>
+            <button type="button" onClick={refreshCalendar} disabled={query.isFetching} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-white" aria-label="Refresh calendar" title="Refresh calendar"><RefreshCw size={15} className={query.isFetching ? "animate-spin" : ""} /></button>
+          </div>
         </div>
 
         <div className="grid grid-cols-7 border-b border-slate-200 text-center text-xs font-black uppercase tracking-wide text-slate-500 dark:border-slate-800">

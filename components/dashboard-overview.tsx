@@ -12,6 +12,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { useDashboardOverview, useMarkCommentsRead, useSaveWeeklyGoal, type OverviewComment, type OverviewPost } from "@/hooks/useDashboardOverview";
 import type { PostListItem } from "@/hooks/usePosts";
 import { formatToWIB } from "@/lib/timezone";
+import { cn } from "@/lib/utils";
+import { AppModal } from "@/components/ui/app-modal";
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -40,6 +42,58 @@ function Sparkline({ values, color, target }: { values: number[]; color: string;
   if (values.length < 2) return null;
   const chartData = values.map((value, index) => ({ index, value, target }));
   return <div className="mt-4 h-10 w-full opacity-80" aria-hidden="true"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} /><Line type="monotone" dataKey="target" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div>;
+}
+
+function MetricCard({
+  asButton,
+  title,
+  value,
+  caption,
+  icon: Icon,
+  accent,
+  children,
+  onClick
+}: {
+  asButton?: boolean;
+  title: string;
+  value: React.ReactNode;
+  caption?: React.ReactNode;
+  icon: typeof Target;
+  accent: "coral" | "violet" | "sky";
+  children?: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const accents = {
+    coral: "from-[#F97362] to-rose-500 text-[#F97362] bg-[#F97362]/10 border-[#F97362]/20",
+    violet: "from-violet-600 to-fuchsia-500 text-violet-600 bg-violet-600/10 border-violet-600/20",
+    sky: "from-sky-500 to-cyan-500 text-sky-600 bg-sky-600/10 border-sky-600/20"
+  };
+  const Tag = asButton ? "button" : "div";
+
+  return (
+    <Tag
+      type={asButton ? "button" : undefined}
+      onClick={onClick}
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all dark:border-slate-800 dark:bg-slate-900",
+        "before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-gradient-to-r",
+        accents[accent].split(" ").slice(0, 2).join(" "),
+        asButton && "cursor-pointer hover:-translate-y-1 hover:border-violet-300 hover:shadow-xl hover:shadow-slate-950/10 focus:outline-none focus:ring-2 focus:ring-violet-300"
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-slate-500">{title}</p>
+          <div className="mt-4 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{value}</div>
+        </div>
+        <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", accents[accent].split(" ").slice(2).join(" "))}>
+          <Icon size={20} />
+        </div>
+      </div>
+      {caption ? <div className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">{caption}</div> : null}
+      {children}
+    </Tag>
+  );
 }
 
 export function DashboardOverview() {
@@ -71,9 +125,15 @@ export function DashboardOverview() {
     {data.warnings.length ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">{data.warnings.join(" ")}</div> : null}
 
     <section className="grid gap-3 md:grid-cols-3">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Week Streak</p><TrendingUp className="text-[#F97362]" size={19} /></div><p className="mt-4 text-3xl font-black text-slate-950 dark:text-white">{data.summary.streak} minggu</p><p className="mt-2 text-sm font-bold text-violet-600">{data.summary.progressStatus}</p><Sparkline values={data.history.map((week) => week.posts)} color="#F97362" /></div>
-      <button type="button" onClick={() => { setGoalValue(data.summary.target ?? 3); setGoalOpen(true); }} className="rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-violet-300 dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Posting Goals</p><Edit3 className="text-violet-600" size={17} /></div>{data.summary.target ? <><p className="mt-4 text-xl font-black text-slate-950 dark:text-white">{data.summary.currentWeekPosts} / {data.summary.target} posts this week</p><div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED]" style={{ width: `${Math.min(data.summary.currentWeekPosts / data.summary.target * 100, 100)}%` }} /></div><p className="mt-2 text-sm font-bold text-violet-600">{data.summary.progressStatus}</p><Sparkline values={data.history.map((week) => week.posts)} color="#7C3AED" target={data.summary.target} /></> : <><p className="mt-4 text-xl font-black text-slate-950 dark:text-white">No goals yet</p><span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-violet-600">Set Goal <ArrowUpRight size={15} /></span></>}</button>
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Comment Score</p><MessageCircle className="text-sky-600" size={19} /></div><p className="mt-4 text-3xl font-black text-slate-950 dark:text-white">{data.summary.commentScore === "Not enough data yet" ? "N/A" : data.summary.commentAverage.toFixed(1)}</p><p className="mt-1 text-xs font-semibold text-slate-400">avg. comments/post</p><p className="mt-2 text-sm font-bold text-sky-600">{data.summary.commentScore}</p>{data.summary.commentScore !== "Not enough data yet" ? <Sparkline values={data.history.map((week) => week.commentAverage)} color="#0EA5E9" /> : null}</div>
+      <MetricCard title="Week Streak" value={`${data.summary.streak} minggu`} caption={data.summary.progressStatus} icon={TrendingUp} accent="coral">
+        <Sparkline values={data.history.map((week) => week.posts)} color="#F97362" />
+      </MetricCard>
+      <MetricCard asButton onClick={() => { setGoalValue(data.summary.target ?? 3); setGoalOpen(true); }} title="Posting Goals" value={data.summary.target ? `${data.summary.currentWeekPosts} / ${data.summary.target}` : "No goals"} caption={data.summary.target ? "posts this week" : <span className="inline-flex items-center gap-1 text-violet-600">Set Goal <ArrowUpRight size={15} /></span>} icon={Edit3} accent="violet">
+        {data.summary.target ? <><div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED]" style={{ width: `${Math.min(data.summary.currentWeekPosts / data.summary.target * 100, 100)}%` }} /></div><p className="mt-2 text-sm font-bold text-violet-600">{data.summary.progressStatus}</p><Sparkline values={data.history.map((week) => week.posts)} color="#7C3AED" target={data.summary.target} /></> : null}
+      </MetricCard>
+      <MetricCard title="Comment Score" value={data.summary.commentScore === "Not enough data yet" ? "N/A" : data.summary.commentAverage.toFixed(1)} caption={<><span className="block text-xs font-semibold text-slate-400">avg. comments/post</span><span className="mt-1 block text-sky-600">{data.summary.commentScore}</span></>} icon={MessageCircle} accent="sky">
+        {data.summary.commentScore !== "Not enough data yet" ? <Sparkline values={data.history.map((week) => week.commentAverage)} color="#0EA5E9" /> : null}
+      </MetricCard>
     </section>
 
     <section><SectionTitle icon={BarChart3} title="Weekly Pulse" /><div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-bold text-slate-500">Posts</p><p className="mt-2 text-2xl font-black dark:text-white">{data.weeklyPulse.posts}</p><PulseChange value={data.weeklyPulse.postsChange} /></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-bold text-slate-500">Total Followers</p><p className="mt-2 text-2xl font-black dark:text-white">{data.weeklyPulse.followers === null ? "-" : compact.format(data.weeklyPulse.followers)}</p><span className="text-xs font-bold text-slate-400">Live count</span></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"><p className="text-xs font-bold text-slate-500">Comments</p><p className="mt-2 text-2xl font-black dark:text-white">{compact.format(data.weeklyPulse.comments)}</p><span className="text-xs font-bold text-slate-400">Minggu ini</span></div></div></section>
@@ -95,5 +155,5 @@ function CommentItem({ comment, unread }: { comment: OverviewComment; unread: bo
 }
 
 function GoalModal({ value, onChange, onClose, onSave, saving }: { value: number; onChange: (value: number) => void; onClose: () => void; onSave: () => void; saving: boolean }) {
-  return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"><div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><h2 className="font-black dark:text-white">Posting Goals</h2><button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button></div><label className="mt-5 block text-sm font-bold text-slate-700 dark:text-slate-200">Target post per minggu<input type="number" min={1} max={100} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-violet-300 dark:border-slate-700 dark:bg-slate-950" /></label><button type="button" onClick={onSave} disabled={saving} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white disabled:opacity-60"><Check size={16} /> {saving ? "Saving..." : "Save Goal"}</button></div></div>;
+  return <AppModal open onClose={onClose} eyebrow="Weekly planning" title="Posting Goals" description="Atur target publish mingguanmu agar progress dashboard tetap terarah." footer={<div className="flex gap-2"><button type="button" onClick={onClose} disabled={saving} className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-white disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Batal</button><button type="button" onClick={onSave} disabled={saving} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white disabled:opacity-60"><Check size={16} /> {saving ? "Saving..." : "Save Goal"}</button></div>}><label className="block text-sm font-bold text-slate-700 dark:text-slate-200">Target post per minggu<input type="number" min={1} max={100} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 dark:border-slate-700 dark:bg-slate-950" /></label></AppModal>;
 }

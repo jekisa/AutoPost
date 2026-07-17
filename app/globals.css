@@ -10,6 +10,13 @@ html {
   scroll-behavior: smooth;
 }
 
+@keyframes appModalEnter {
+  from { opacity: 0; transform: translateY(1rem) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.app-modal-enter { animation: appModalEnter 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
 button,
 input,
 textarea,
@@ -63,29 +70,6 @@ select {
 }
 
 /* Dashboard overview interaction polish. */
-.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(1) {
-  background: linear-gradient(135deg, rgb(249 115 98 / 0.04), #ffffff);
-  border-color: rgb(249 115 98 / 0.2);
-  transition: all 200ms ease;
-}
-
-.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(2) {
-  background: linear-gradient(135deg, rgb(124 58 237 / 0.04), #ffffff);
-  border-color: rgb(124 58 237 / 0.2);
-  transition: all 200ms ease;
-}
-
-.dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(3) {
-  background: linear-gradient(135deg, rgb(14 165 233 / 0.04), #ffffff);
-  border-color: rgb(14 165 233 / 0.2);
-  transition: all 200ms ease;
-}
-
-.dashboard-overview > section[class~="md:grid-cols-3"] > :is(div, button):hover {
-  transform: translateY(-0.25rem);
-  box-shadow: 0 10px 24px rgb(15 23 42 / 0.08);
-}
-
 .dashboard-overview > section[class~="md:grid-cols-3"] > button[class*="hover:border-violet-300"]:focus-visible,
 .dashboard-overview button[class*="hover:-translate-y-0.5"]:focus-visible {
   outline: 3px solid rgb(124 58 237 / 0.28);
@@ -131,16 +115,4 @@ select {
   color: #5b21b6;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(1) {
-  background: linear-gradient(135deg, rgb(249 115 98 / 0.08), #0f172a);
-}
-
-.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(2) {
-  background: linear-gradient(135deg, rgb(124 58 237 / 0.1), #0f172a);
-}
-
-.dark .dashboard-overview > section[class~="md:grid-cols-3"] > :nth-child(3) {
-  background: linear-gradient(135deg, rgb(14 165 233 / 0.08), #0f172a);
 }

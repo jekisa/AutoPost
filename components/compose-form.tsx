@@ -1,11 +1,13 @@
 "use client";
 
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, ImagePlus, Send, Trash2, Upload, Video } from "lucide-react";
+import { ChangeEvent, DragEvent, FormEvent, UIEvent, useEffect, useRef, useState } from "react";
+import { CalendarClock, GripVertical, ImagePlus, Send, Trash2, Upload, Video, X } from "lucide-react";
+import { HighlightedCaption } from "@/components/caption-highlighter";
 import { InstagramPreview, type PreviewMedia } from "@/components/instagram-preview";
 import { useCreatePost } from "@/hooks/usePosts";
 import { formatToWIB } from "@/lib/timezone";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { cn } from "@/lib/utils";
 
 type MediaType = "IMAGE" | "CAROUSEL" | "REELS";
 type PublishMode = "NOW" | "SCHEDULE";
@@ -50,10 +52,12 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
   const [message, setMessage] = useState("");
   const [media, setMedia] = useState<SelectedMedia[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [draggedMediaIndex, setDraggedMediaIndex] = useState<number | null>(null);
   const [instagramUsername, setInstagramUsername] = useState<string | null>(null);
   const createPost = useCreatePost();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<SelectedMedia[]>([]);
+  const captionBackdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     mediaRef.current = media;
@@ -219,12 +223,12 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
     await addFiles(Array.from(event.dataTransfer.files));
   }
 
-  function move(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (target < 0 || target >= media.length) return;
+  function reorderMedia(from: number, to: number) {
+    if (from === to || from < 0 || to < 0 || from >= media.length || to >= media.length) return;
     setMedia((items) => {
       const next = [...items];
-      [next[index], next[target]] = [next[target], next[index]];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
       return next;
     });
   }
@@ -235,6 +239,12 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
       if (removed) URL.revokeObjectURL(removed.previewUrl);
       return items.filter((item) => item.id !== id);
     });
+  }
+
+  function syncCaptionScroll(event: UIEvent<HTMLTextAreaElement>) {
+    if (!captionBackdropRef.current) return;
+    captionBackdropRef.current.scrollTop = event.currentTarget.scrollTop;
+    captionBackdropRef.current.scrollLeft = event.currentTarget.scrollLeft;
   }
 
   function validateBeforeSubmit() {
@@ -282,6 +292,7 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
   }
 
   const accept = mediaType === "REELS" ? "video/mp4,video/quicktime" : "image/jpeg,image/png,image/webp";
+  const captionTone = caption.length >= 2150 ? "text-rose-600 dark:text-rose-400" : caption.length >= 2000 ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400";
   const previewMedia: PreviewMedia[] = media.map((item) => ({
     previewUrl: item.previewUrl,
     type: mediaType === "REELS" ? "VIDEO" : "IMAGE"
@@ -321,6 +332,19 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
                 {media.map((item, index) => (
                   <div
                     key={item.id}
+                    draggable={mediaType === "CAROUSEL"}
+                    onDragStart={() => setDraggedMediaIndex(index)}
+                    onDragOver={(event) => {
+                      if (mediaType !== "CAROUSEL") return;
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (draggedMediaIndex !== null) reorderMedia(draggedMediaIndex, index);
+                      setDraggedMediaIndex(null);
+                    }}
+                    onDragEnd={() => setDraggedMediaIndex(null)}
                     className={`rounded-2xl border bg-white p-2 dark:bg-slate-900 ${
                       item.validationError ? "border-red-300" : "border-slate-200 dark:border-slate-700"
                     }`}
@@ -340,14 +364,9 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
                       <span className="truncate text-xs font-normal text-stone-600">{item.file.name}</span>
                       <div className="flex shrink-0 gap-1">
                         {mediaType === "CAROUSEL" ? (
-                          <>
-                            <button type="button" onClick={() => move(index, -1)} className="rounded border p-1" aria-label="Move up">
-                              <ArrowUp size={14} />
-                            </button>
-                            <button type="button" onClick={() => move(index, 1)} className="rounded border p-1" aria-label="Move down">
-                              <ArrowDown size={14} />
-                            </button>
-                          </>
+                          <span className="inline-flex cursor-grab items-center rounded border border-slate-200 p-1 text-slate-500 dark:border-slate-700" aria-label="Drag to reorder" title="Drag to reorder">
+                            <GripVertical size={14} />
+                          </span>
                         ) : null}
                         <button type="button" onClick={() => remove(item.id)} className="rounded border p-1 text-red-700" aria-label="Remove">
                           <Trash2 size={14} />
@@ -383,7 +402,7 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
             <input
               ref={fileInputRef}
               id="media-upload"
@@ -395,71 +414,95 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
               onChange={onFilesSelected}
               className="sr-only"
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-violet-200 dark:focus:ring-violet-950"
-            >
-              <Upload size={16} />
-              Choose {mediaType === "REELS" ? "Video" : mediaType === "CAROUSEL" ? "Images" : "Image"}
-            </button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {media.length
-                  ? mediaType === "CAROUSEL"
-                    ? `${media.length} images selected`
-                    : media[0].file.name
-                  : "No file selected"}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                {mediaType === "REELS" ? "MP4 atau MOV, maksimal 100MB." : "JPG, PNG, atau WebP, maksimal 8MB per file."}
-              </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-violet-200 dark:focus:ring-violet-950"
+              >
+                <Upload size={16} />
+                Choose {mediaType === "REELS" ? "Video" : mediaType === "CAROUSEL" ? "Images" : "Image"}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {media.length ? `${media.length} file${media.length > 1 ? "s" : ""} selected` : "No file selected"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {mediaType === "REELS" ? "MP4 atau MOV, maksimal 100MB." : "JPG, PNG, atau WebP, maksimal 8MB per file."}
+                </p>
+              </div>
             </div>
+            {media.length ? <SelectedMediaStrip items={media} mediaType={mediaType} onRemove={remove} onReplace={() => fileInputRef.current?.click()} onReorder={reorderMedia} /> : null}
           </div>
         </label>
 
         <label className="block space-y-2 text-sm font-medium">
           Caption
-          <textarea
-            name="caption"
-            maxLength={2200}
-            required
-            rows={9}
-            value={caption}
-            onChange={(event) => setCaption(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-normal focus:outline-none focus:ring-2 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-950"
-          />
+          <div className="relative rounded-2xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-teal-500 dark:border-slate-700 dark:bg-slate-950">
+            <div
+              ref={captionBackdropRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words px-3 py-2 text-sm leading-6 text-slate-900 dark:text-slate-100"
+            >
+              <HighlightedCaption text={caption} />
+              {caption.endsWith("\n") ? " " : null}
+            </div>
+            <textarea
+              name="caption"
+              maxLength={2200}
+              required
+              rows={9}
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              onScroll={syncCaptionScroll}
+              className="relative z-10 block w-full resize-y rounded-2xl border-0 bg-transparent px-3 py-2 text-sm font-normal leading-6 text-transparent caret-slate-950 outline-none placeholder:text-slate-400 dark:caret-white"
+              placeholder="Tulis caption..."
+            />
+          </div>
         </label>
         <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setPublishMode("NOW")}
-              className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${
-                publishMode === "NOW" ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              }`}
-            >
-              <Send size={16} /> Publish Now
-            </button>
-            <button
-              type="button"
-              onClick={() => setPublishMode("SCHEDULE")}
-              className={`inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium ${
-                publishMode === "SCHEDULE" ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              }`}
-            >
-              <CalendarClock size={16} /> Schedule
-            </button>
-          </div>
           {publishMode === "SCHEDULE" ? (
-            <DateTimePicker value={scheduledAt} onChange={setScheduledAt} required />
-          ) : null}
+            <div className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 sm:w-auto sm:min-w-48">
+              <CalendarClock size={16} /> Schedule selected
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPublishMode("NOW");
+                  requestAnimationFrame(() => {
+                    const form = fileInputRef.current?.form;
+                    form?.requestSubmit();
+                  });
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#F97362]/60 bg-white px-4 py-3 text-sm font-black text-[#7C3AED] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-violet-100 dark:bg-slate-900 dark:focus:ring-violet-950"
+              >
+                <Send size={16} /> Publish Now
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishMode("SCHEDULE")}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-950"
+              >
+                <CalendarClock size={16} /> Schedule
+              </button>
+            </div>
+          )}
+          <div className={cn("grid overflow-hidden transition-all duration-300 ease-out", publishMode === "SCHEDULE" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+            <div className="min-h-0 space-y-3">
+              <DateTimePicker value={scheduledAt} onChange={setScheduledAt} required={publishMode === "SCHEDULE"} />
+              <button type="button" onClick={() => setPublishMode("NOW")} className="inline-flex items-center gap-1 text-xs font-black text-slate-500 transition-colors hover:text-[#7C3AED] dark:text-slate-400">
+                <X size={13} /> Batal schedule
+              </button>
+            </div>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-stone-500">{caption.length}/2200</span>
-          <button disabled={createPost.isPending} className="inline-flex items-center gap-2 rounded-full bg-teal-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-60">
+          <span className={cn("text-sm font-bold transition-colors duration-300", captionTone)}>{caption.length}/2200</span>
+          <button disabled={createPost.isPending} className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-5 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-violet-200 disabled:opacity-60 dark:focus:ring-violet-950">
             {publishMode === "SCHEDULE" ? <CalendarClock size={16} /> : <Send size={16} />}
-            {createPost.isPending ? "Saving..." : publishMode === "SCHEDULE" ? "Save Schedule" : "Publish Now"}
+            {createPost.isPending ? "Saving..." : publishMode === "SCHEDULE" ? "Confirm Schedule" : "Publish Now"}
           </button>
         </div>
         {message ? <p className="text-sm text-stone-700">{message}</p> : null}
@@ -468,5 +511,67 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
         <InstagramPreview media={previewMedia} caption={caption} mediaType={mediaType} username={instagramUsername} />
       </div>
     </form>
+  );
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function SelectedMediaStrip({
+  items,
+  mediaType,
+  onRemove,
+  onReplace,
+  onReorder
+}: {
+  items: SelectedMedia[];
+  mediaType: MediaType;
+  onRemove: (id: string) => void;
+  onReplace: () => void;
+  onReorder: (from: number, to: number) => void;
+}) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {items.map((item, index) => (
+        <div
+          key={item.id}
+          draggable={mediaType === "CAROUSEL"}
+          onDragStart={() => setDraggedIndex(index)}
+          onDragOver={(event) => {
+            if (mediaType !== "CAROUSEL") return;
+            event.preventDefault();
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (draggedIndex !== null) onReorder(draggedIndex, index);
+            setDraggedIndex(null);
+          }}
+          onDragEnd={() => setDraggedIndex(null)}
+          className="flex min-w-64 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900"
+        >
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
+            {mediaType === "REELS" ? (
+              <video src={item.previewUrl} className="h-full w-full object-cover" muted />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-black text-slate-800 dark:text-slate-100">{item.file.name}</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{formatFileSize(item.file.size)}</p>
+          </div>
+          {mediaType === "CAROUSEL" ? <GripVertical size={15} className="shrink-0 cursor-grab text-slate-400" /> : null}
+          <button type="button" onClick={items.length === 1 ? onReplace : () => onRemove(item.id)} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300" aria-label={items.length === 1 ? "Ganti file" : "Hapus file"} title={items.length === 1 ? "Ganti" : "Hapus"}>
+            {items.length === 1 ? <Upload size={14} /> : <X size={14} />}
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
