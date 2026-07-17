@@ -10,6 +10,7 @@ import {
 import { IgAccount } from "@/models/IgAccount";
 import { Post } from "@/models/Post";
 import { PublishLog } from "@/models/PublishLog";
+import { createFacebookPhotoPost, createFacebookTextPost } from "@/lib/meta/facebook";
 
 const TRANSIENT_META_CODES = new Set([1, 2, 4, 17, 32, 613]);
 const DAILY_PUBLISH_LIMIT = 25;
@@ -74,7 +75,7 @@ async function assertDailyPublishLimit() {
   }
 }
 
-export async function publishPost(postId: string) {
+async function publishInstagramPost(postId: string) {
   await connectDB();
   const post = await Post.findById(postId);
 
@@ -200,6 +201,42 @@ export async function publishPost(postId: string) {
   });
 
   return published;
+}
+
+async function publishFacebookPost(postId: string) {
+  await connectDB();
+  const post = await Post.findById(postId);
+  if (!post) throw new Error("Post tidak ditemukan.");
+  const account = await IgAccount.findOne().sort({ updatedAt: -1 });
+  if (!account?.pageId) throw new Error("Facebook Page belum dikonfigurasi di Settings.");
+  const accessToken = decryptSecret(account.accessToken);
+  const override = post.platformOverrides?.find((item) => item.platform === "facebook");
+  const caption = override?.caption ?? post.baseCaption ?? post.caption;
+  const assets = [...(override?.media?.length ? override.media : post.baseMedia?.length ? post.baseMedia : post.mediaAssets)].sort((a, b) => a.order - b.order);
+  if (post.mediaType !== "IMAGE" && !override?.media?.length) throw new Error("Facebook untuk Carousel/Reels membutuhkan media override IMAGE atau akan di-skip.");
+  const result = assets[0] ? await createFacebookPhotoPost(account.pageId, { imageUrl: assets[0].url, caption, accessToken }) : await createFacebookTextPost(account.pageId, { message: caption, accessToken });
+  const externalId = result.post_id ?? result.id;
+  if (!externalId) throw new Error("Facebook tidak mengembalikan ID post.");
+  return { id: externalId };
+}
+
+export async function publishPost(postId: string) {
+  await connectDB();
+  const post = await Post.findById(postId);
+  if (!post) throw new Error("Post tidak ditemukan.");
+  const platforms = post.platforms?.length ? post.platforms : ["instagram"];
+  const results = await Promise.allSettled(platforms.map(async (platform) => {
+    const published = platform === "facebook" ? await publishFacebookPost(postId) : await publishInstagramPost(postId);
+    return { platform, published };
+  }));
+  const platformResults = results.map((result, index) => result.status === "fulfilled"
+    ? { platform: platforms[index], status: "PUBLISHED" as const, externalId: result.value.published.id, publishedAt: new Date() }
+    : { platform: platforms[index], status: "FAILED" as const, errorMessage: getErrorMessage(result.reason) });
+  const successCount = platformResults.filter((result) => result.status === "PUBLISHED").length;
+  const status = successCount === platforms.length ? "PUBLISHED" : successCount ? "PARTIAL" : "FAILED";
+  await Post.findByIdAndUpdate(postId, { platformResults, status, publishedAt: successCount ? new Date() : null, errorMessage: successCount ? null : platformResults.map((result) => result.errorMessage).filter(Boolean).join(" ") });
+  const instagramResult = platformResults.find((result) => result.platform === "instagram" && result.status === "PUBLISHED");
+  return { id: instagramResult?.externalId ?? platformResults.find((result) => result.status === "PUBLISHED")?.externalId ?? "", platformResults };
 }
 
 export async function publishPostWithRetry(postId: string, retries = 1) {

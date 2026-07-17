@@ -1,13 +1,14 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, UIEvent, useEffect, useRef, useState } from "react";
-import { CalendarClock, GripVertical, ImagePlus, Send, Trash2, Upload, Video, X } from "lucide-react";
+import { CalendarClock, Camera, Globe2, GripVertical, ImagePlus, Send, Trash2, Upload, Video, X } from "lucide-react";
 import { HighlightedCaption } from "@/components/caption-highlighter";
 import { InstagramPreview, type PreviewMedia } from "@/components/instagram-preview";
 import { useCreatePost } from "@/hooks/usePosts";
 import { formatToWIB } from "@/lib/timezone";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { cn } from "@/lib/utils";
+import { AppModal } from "@/components/ui/app-modal";
 
 type MediaType = "IMAGE" | "CAROUSEL" | "REELS";
 type PublishMode = "NOW" | "SCHEDULE";
@@ -54,6 +55,12 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
   const [dragActive, setDragActive] = useState(false);
   const [draggedMediaIndex, setDraggedMediaIndex] = useState<number | null>(null);
   const [instagramUsername, setInstagramUsername] = useState<string | null>(null);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [platforms, setPlatforms] = useState<Array<"instagram" | "facebook">>(["instagram", "facebook"]);
+  const [facebookCustomizeOpen, setFacebookCustomizeOpen] = useState(false);
+  const [facebookCaption, setFacebookCaption] = useState(defaultCaption);
+  const [facebookMedia, setFacebookMedia] = useState<File | null>(null);
+  const [facebookMediaUrl, setFacebookMediaUrl] = useState<string | null>(null);
   const createPost = useCreatePost();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<SelectedMedia[]>([]);
@@ -255,6 +262,21 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
     return media.length === 1 ? "" : "Pilih tepat 1 video untuk Reels.";
   }
 
+  function requestPublishNow() {
+    const validationError = validateBeforeSubmit();
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+    setPublishMode("NOW");
+    setPublishConfirmOpen(true);
+  }
+
+  function confirmPublishNow() {
+    setPublishConfirmOpen(false);
+    requestAnimationFrame(() => fileInputRef.current?.form?.requestSubmit());
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validationError = validateBeforeSubmit();
@@ -273,6 +295,9 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
     formData.set("caption", caption);
     formData.set("mediaType", mediaType);
     formData.set("publishMode", publishMode);
+    formData.set("platforms", platforms.join(","));
+    if (facebookCustomizeOpen && facebookCaption !== caption) formData.set("facebookCaption", facebookCaption);
+    if (facebookCustomizeOpen && facebookMedia) formData.append("facebookMedia", facebookMedia, facebookMedia.name);
     if (publishMode === "SCHEDULE") formData.set("scheduledAt", scheduledAt);
     media.forEach((item) => formData.append("media", item.file, item.file.name));
 
@@ -301,6 +326,15 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_380px]">
       <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-slate-950 dark:text-white">Publish to</p><p className="mt-1 text-xs text-slate-500">Semua channel aktif secara default</p></div><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Auto cross-post</span></div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => setPlatforms((items) => items.includes("instagram") ? items.filter((item) => item !== "instagram") : [...items, "instagram"])} className={cn("inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-black transition", platforms.includes("instagram") ? "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950" : "border-slate-200 text-slate-500 dark:border-slate-700") }><Camera size={16} /> Instagram {platforms.includes("instagram") ? "✓" : ""}</button>
+            <button type="button" onClick={() => setPlatforms((items) => items.includes("facebook") ? items.filter((item) => item !== "facebook") : [...items, "facebook"])} className={cn("inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-black transition", platforms.includes("facebook") ? "border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950" : "border-slate-200 text-slate-500 dark:border-slate-700") }><Globe2 size={16} /> Facebook Page {platforms.includes("facebook") ? "✓" : ""}</button>
+          </div>
+          {platforms.includes("facebook") && mediaType !== "IMAGE" ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">Facebook untuk Carousel/Reels belum didukung, akan di-skip untuk platform ini.</p> : null}
+        </div>
+
         <div className="grid gap-2 sm:grid-cols-3">
           {modes.map((mode) => (
             <button
@@ -435,6 +469,7 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
             {media.length ? <SelectedMediaStrip items={media} mediaType={mediaType} onRemove={remove} onReplace={() => fileInputRef.current?.click()} onReorder={reorderMedia} /> : null}
           </div>
         </label>
+        {platforms.includes("facebook") ? <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-3 dark:border-sky-900 dark:bg-sky-950/30"><button type="button" onClick={() => { setFacebookCustomizeOpen((open) => !open); if (!facebookCaption) setFacebookCaption(caption); }} className="text-xs font-black text-sky-700 dark:text-sky-300">{facebookCustomizeOpen ? "Sembunyikan customization Facebook" : "Customize for Facebook"}</button>{facebookCustomizeOpen ? <div className="mt-3 space-y-3"><textarea value={facebookCaption} onChange={(event) => setFacebookCaption(event.target.value)} maxLength={2200} rows={4} className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-300 dark:border-sky-800 dark:bg-slate-950" placeholder="Caption khusus Facebook" /><label className="block text-xs font-bold text-sky-800 dark:text-sky-200">Media khusus Facebook<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0] ?? null; setFacebookMedia(file); setFacebookMediaUrl(file ? URL.createObjectURL(file) : null); }} className="mt-2 block w-full text-xs" />{facebookMediaUrl ? <img src={facebookMediaUrl} alt="Facebook custom media" className="mt-2 h-20 w-20 rounded-xl object-cover" /> : <span className="mt-1 block font-normal text-sky-700/70">Kosong = pakai media utama.</span>}</label><button type="button" onClick={() => { if (facebookMediaUrl) URL.revokeObjectURL(facebookMediaUrl); setFacebookMedia(null); setFacebookMediaUrl(null); setFacebookCaption(caption); setFacebookCustomizeOpen(false); }} className="text-xs font-bold text-slate-500 hover:text-sky-700">Reset ke default</button></div> : <p className="mt-1 text-xs text-slate-500">Facebook memakai caption dan media utama yang sama.</p>}</div> : null}
 
         <label className="block space-y-2 text-sm font-medium">
           Caption
@@ -461,36 +496,24 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
           </div>
         </label>
         <div className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-          {publishMode === "SCHEDULE" ? (
-            <div className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 sm:w-auto sm:min-w-48">
-              <CalendarClock size={16} /> Schedule selected
-            </div>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => {
-                  setPublishMode("NOW");
-                  requestAnimationFrame(() => {
-                    const form = fileInputRef.current?.form;
-                    form?.requestSubmit();
-                  });
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#F97362]/60 bg-white px-4 py-3 text-sm font-black text-[#7C3AED] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-violet-100 dark:bg-slate-900 dark:focus:ring-violet-950"
+                onClick={requestPublishNow}
+                className={cn("inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-950", publishMode === "NOW" ? "border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] text-white shadow-lg shadow-violet-500/20" : "border-[#F97362]/60 bg-white text-[#7C3AED] dark:bg-slate-900")}
               >
                 <Send size={16} /> Publish Now
               </button>
               <button
                 type="button"
                 onClick={() => setPublishMode("SCHEDULE")}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-950"
+                className={cn("inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-950", publishMode === "SCHEDULE" ? "border-transparent bg-gradient-to-r from-[#F97362] to-[#7C3AED] text-white shadow-lg shadow-violet-500/20" : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200")}
               >
                 <CalendarClock size={16} /> Schedule
               </button>
-            </div>
-          )}
-          <div className={cn("grid overflow-hidden transition-all duration-300 ease-out", publishMode === "SCHEDULE" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
-            <div className="min-h-0 space-y-3">
+          </div>
+          <div className={cn("grid transition-all duration-300 ease-out", publishMode === "SCHEDULE" ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0")}>
+            <div className="min-h-0 space-y-3 overflow-visible">
               <DateTimePicker value={scheduledAt} onChange={setScheduledAt} required={publishMode === "SCHEDULE"} />
               <button type="button" onClick={() => setPublishMode("NOW")} className="inline-flex items-center gap-1 text-xs font-black text-slate-500 transition-colors hover:text-[#7C3AED] dark:text-slate-400">
                 <X size={13} /> Batal schedule
@@ -510,6 +533,12 @@ export function ComposeForm({ defaultScheduledAt, defaultCaption = "", defaultMe
       <div className="order-first lg:order-last">
         <InstagramPreview media={previewMedia} caption={caption} mediaType={mediaType} username={instagramUsername} />
       </div>
+      <AppModal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} eyebrow="Ready to publish" title="Publish sekarang?" description="Post ini akan langsung dikirim ke Instagram dan tidak masuk antrean schedule." className="max-w-md" footer={<div className="flex gap-2"><button type="button" onClick={() => setPublishConfirmOpen(false)} disabled={createPost.isPending} className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-white disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Batal</button><button type="button" onClick={confirmPublishNow} disabled={createPost.isPending} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#F97362] to-[#7C3AED] px-4 py-3 text-sm font-black text-white shadow-lg shadow-violet-500/20 transition hover:-translate-y-0.5 disabled:opacity-60"><Send size={16} /> {createPost.isPending ? "Publishing..." : "Publish Now"}</button></div>}>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><Send size={18} /></div><div><p className="text-sm font-black text-slate-950 dark:text-white">{media.length} {media.length === 1 ? "media" : "media files"} siap dikirim</p><p className="mt-1 text-xs text-slate-500">{mediaType === "REELS" ? "Instagram Reel" : mediaType === "CAROUSEL" ? "Instagram Carousel" : "Instagram Image"}</p></div></div>
+          {caption ? <p className="mt-4 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">{caption}</p> : null}
+        </div>
+      </AppModal>
     </form>
   );
 }

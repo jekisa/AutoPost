@@ -17,7 +17,9 @@ const schema = z.object({
   caption: z.string().min(1).max(2200),
   mediaType: z.enum(["IMAGE", "CAROUSEL", "REELS"]),
   publishMode: z.enum(["NOW", "SCHEDULE"]).default("NOW"),
-  scheduledAt: z.string().optional()
+  scheduledAt: z.string().optional(),
+  platforms: z.array(z.enum(["instagram", "facebook"])).default(["instagram"]),
+  facebookCaption: z.string().max(2200).optional()
 });
 
 function isImage(file: File) {
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
     mediaType: formData.get("mediaType"),
     publishMode: formData.get("publishMode") || "NOW",
     scheduledAt: formData.get("scheduledAt") || undefined
+    , platforms: String(formData.get("platforms") || "instagram").split(",").filter((value): value is "instagram" | "facebook" => value === "instagram" || value === "facebook"),
+    facebookCaption: formData.get("facebookCaption") || undefined
   });
 
   if (!parsed.success) {
@@ -49,7 +53,11 @@ export async function POST(request: Request) {
   }
 
   const files = formData.getAll("media").filter((item): item is File => item instanceof File && item.size > 0);
-  const { caption, mediaType, publishMode } = parsed.data;
+  const facebookMedia = formData.get("facebookMedia");
+  const { caption, mediaType, publishMode, platforms, facebookCaption } = parsed.data;
+  if (!platforms.length) return NextResponse.json({ error: "Pilih minimal satu platform." }, { status: 400 });
+  const effectivePlatforms = mediaType === "IMAGE" ? platforms : platforms.filter((platform) => platform !== "facebook");
+  if (!effectivePlatforms.length) return NextResponse.json({ error: "Tidak ada platform yang mendukung tipe media ini." }, { status: 400 });
   const scheduledAt =
     publishMode === "SCHEDULE" && parsed.data.scheduledAt ? convertWIBInputToUTC(parsed.data.scheduledAt) : null;
 
@@ -85,6 +93,9 @@ export async function POST(request: Request) {
   await connectDB();
   const post = await Post.create({
     caption,
+    baseCaption: caption,
+    platforms: effectivePlatforms,
+    platformOverrides: facebookCaption && facebookCaption !== caption ? [{ platform: "facebook", caption: facebookCaption }] : [],
     mediaType,
     status: publishMode === "SCHEDULE" ? "SCHEDULED" : "PUBLISHING",
     scheduledAt,
@@ -104,7 +115,7 @@ export async function POST(request: Request) {
           token: blobToken
         });
 
-        post.mediaAssets.push({
+          post.mediaAssets.push({
           url: blob.url,
           order: index,
           type: mediaType === "REELS" ? "VIDEO" : "IMAGE"
@@ -113,6 +124,13 @@ export async function POST(request: Request) {
         return { url: blob.url, order: index };
       })
     );
+    post.baseMedia = post.mediaAssets;
+    if (facebookMedia instanceof File && facebookMedia.size > 0 && effectivePlatforms.includes("facebook")) {
+      if (!isImage(facebookMedia) || facebookMedia.size > MAX_IMAGE_SIZE) throw new Error("Media khusus Facebook harus JPG, PNG, atau WebP maksimal 8MB.");
+      const blob = await put(`facebook/${post._id.toString()}/${sanitizeFileName(facebookMedia.name)}`, facebookMedia, { access: "public", addRandomSuffix: true, token: blobToken });
+      (post as any).platformOverrides = [{ platform: "facebook", caption: facebookCaption && facebookCaption !== caption ? facebookCaption : undefined, media: [{ url: blob.url, order: 0, type: "IMAGE" }] }];
+      await post.save();
+    }
     await post.save();
 
     if (publishMode === "SCHEDULE") {

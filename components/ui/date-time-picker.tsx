@@ -4,6 +4,7 @@ import { addDays, addHours, format, isBefore, parse, setHours, startOfDay } from
 import { id } from "date-fns/locale";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
 import { DayPicker } from "react-day-picker";
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getNowInWIB } from "@/lib/timezone";
 
@@ -44,10 +45,20 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
   const [hour, setHour] = useState(parsed?.getHours() ?? 9);
   const [minute, setMinute] = useState(parsed?.getMinutes() ?? 0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0, width: 352 });
+
+  function updatePanelPosition() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(352, window.innerWidth - 24);
+    setPanelPosition({ top: Math.max(12, rect.top - 8), left: Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12), width });
+  }
 
   useEffect(() => {
     function closeOnOutside(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!containerRef.current?.contains(event.target as Node) && !panelRef.current?.contains(event.target as Node)) setOpen(false);
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
@@ -59,6 +70,18 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePanelPosition();
+    const onViewportChange = () => updatePanelPosition();
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
+  }, [open]);
 
   function chooseDay(day: Date | undefined) {
     if (!day || isBefore(startOfDay(day), startOfDay(today))) return;
@@ -90,6 +113,7 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
     <div ref={containerRef} className="relative">
       <label htmlFor={id} className="mb-2 block text-sm font-medium text-slate-800 dark:text-slate-100">{label}</label>
       <button
+        ref={triggerRef}
         id={id}
         type="button"
         disabled={disabled}
@@ -104,8 +128,8 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
         </span>
       </button>
 
-      {open ? (
-        <div role="dialog" aria-label="Pilih tanggal dan waktu publish" className="fixed inset-x-3 bottom-3 z-50 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-[calc(100%+0.5rem)] sm:top-auto sm:w-[22rem] dark:border-slate-700 dark:bg-slate-900">
+      {open ? createPortal(
+        <div ref={panelRef} role="dialog" aria-label="Pilih tanggal dan waktu publish" style={{ top: panelPosition.top, left: panelPosition.left, width: panelPosition.width, transform: "translateY(-100%)" }} className="fixed z-[120] max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
           <DayPicker
             mode="single"
             month={month}
@@ -162,7 +186,7 @@ export function DateTimePicker({ value, onChange, required, disabled, id = "publ
             </div>
             <button type="button" onClick={() => setOpen(false)} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-sm font-bold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"><Check size={16} /> Selesai</button>
           </div>
-        </div>
+        </div>, document.body
       ) : null}
     </div>
   );
